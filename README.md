@@ -16,11 +16,11 @@ Meanwhile, the people *in* the stories — the doctors, teachers, organizers, ac
 
 ### For readers
 
-**No account needed.** Click a dollar amount under any article. Pay with card, Apple Pay, Google Pay, or PayPal. Done in 10 seconds. No signup, no wallet, no app.
+**First time you click a tip button**, you create a wallet and add funds — card, Apple Pay, Google Pay, PayPal, Venmo, Zelle, M-Pesa, crypto, whatever your SimpleTip node supports. Takes 30 seconds.
 
-**Optional wallet for one-click tips.** Create a free account, add funds once, then tip on any site with one click. Your balance follows you everywhere — blogs, newsletters, news sites. Like having a tip jar in your pocket.
+**From then on, every tip is one click.** Click $3 under an article → green flash → done. Your wallet balance decrements. No checkout, no popup, no leaving the page. Works on every site that has the widget — your wallet follows you everywhere.
 
-**Split tips.** When an article covers real people or causes, a slider lets you split your tip between the author and the subject. 50/50, 70/30, whatever feels right.
+**Split tips.** When an article covers real people or causes, a slider lets you split your tip between the author and the subject. 50/50, 70/30, whatever feels right. Both get paid.
 
 ### For authors and journalists
 
@@ -57,7 +57,7 @@ Subjects register their own payout method — or the author can set one up on th
 
 **Local news is dying.** The business model is broken. Advertising doesn't sustain independent reporting. Paywalls lock out the communities being served. Subscriptions work for a few big outlets but not for the freelance journalist covering their city council or the reporter embedded in a refugee camp.
 
-**Tips won't replace salaries, but they change the relationship.** When a reader can tip a journalist $3 at the bottom of an article they just read — without leaving the page, without creating an account — it creates a direct connection between the person doing the work and the person who values it.
+**Tips won't replace salaries, but they change the relationship.** When a reader can load a wallet once and then tip a journalist $3 with one click at the bottom of an article — without leaving the page, without any checkout flow — it creates a direct connection between the person doing the work and the person who values it.
 
 **Impact journalism deserves impact funding.** When a story about a community health worker or a wrongfully detained person moves readers to act, that impulse should have somewhere to go beyond "thoughts and prayers." Split tips channel that impulse into direct support.
 
@@ -171,7 +171,7 @@ The node operator decides which payment methods to support. The minimum viable s
 | Works on Substack/Ghost/WP | Link only | Link only | Link only | **Native embed** |
 | Federated / open source | No | No | No | **Yes** |
 | Nonprofit / tax deductible | No | No | No | **Yes (nonprofit nodes)** |
-| No account needed to tip | No | No | No | **Yes** |
+| One-click tip (wallet) | No | No | No | **Yes — fund once, tip everywhere** |
 
 ## Use Cases
 
@@ -208,12 +208,12 @@ Full deployment docs coming. If you're interested in running a node, open an iss
 - **Database:** SQLite (single node) or Postgres (production scale).
 - **Payments in:** Stripe Checkout (cards, Apple Pay, Google Pay, bank), PayPal.
 - **Payments out:** PayPal Payouts, Wise API, Chimoney (M-Pesa), manual for others.
-- **Auth:** Email (magic link or password), Google OAuth, ATProto — all optional. Anonymous tips work without auth.
+- **Auth:** Email (magic link or password), Google OAuth, ATProto — lightweight wallet creation.
 - **Federation:** ATProto (planned) — publish tip records for portability and cross-node verification.
 
 ## Status
 
-**Working demo:** Web component, wallet system, tip ledger, author registration, split tips, anonymous checkout.
+**Working demo:** Web component, wallet system, tip ledger, author registration, split tips, multi-method funding.
 
 **Next:**
 - Stripe integration (real payments)

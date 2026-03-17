@@ -142,6 +142,15 @@
           }
           .wallet-hint.show { display: block; }
           .wallet-hint a { color: ${ACCENT}; cursor: pointer; text-decoration: underline; }
+
+          .bal-badge {
+            display: none; font-size: 0.68rem; font-weight: 600;
+            background: rgba(255,255,255,0.15); padding: 3px 8px;
+            border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+            cursor: pointer;
+          }
+          .bal-badge.show { display: block; }
+          .bal-badge:hover { background: rgba(255,255,255,0.25); }
         </style>
 
         <div class="tip-bar" id="bar">
@@ -150,6 +159,7 @@
             <div class="who">Tip ${esc(authorName)}${isSplit ? ' + ' + esc(subjectName) : ''}</div>
             <div class="sub">powered by SimpleTip</div>
           </div>
+          <div class="bal-badge" id="balBadge" title="Your wallet balance"></div>
           <div class="amounts" id="amounts">
             ${defaultAmounts.map(a => `<button class="amt" data-amount="${a}">$${a}</button>`).join('')}
           </div>
@@ -182,6 +192,33 @@
       const authorPct = shadow.getElementById('authorPct');
       const subjectPct = shadow.getElementById('subjectPct');
       const addFundsLink = shadow.getElementById('addFundsLink');
+      const balBadge = shadow.getElementById('balBadge');
+
+      // Show balance badge if wallet exists
+      const _updateBal = () => {
+        const w = getWallet();
+        if (w && w.token) {
+          balBadge.textContent = `$${(w.balance || 0).toFixed(2)}`;
+          balBadge.classList.add('show');
+        } else {
+          balBadge.classList.remove('show');
+        }
+      };
+      _updateBal();
+
+      // Clicking balance opens fund page
+      balBadge.addEventListener('click', () => this._openFundingPopup(author));
+
+      // Listen for wallet updates from fund popup
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'simpletip-wallet-updated') {
+          saveWallet(event.data.wallet);
+          _updateBal();
+        }
+      });
+
+      // Also update after tips
+      this.addEventListener('tip', () => setTimeout(_updateBal, 100));
 
       // Slider
       if (slider) {
