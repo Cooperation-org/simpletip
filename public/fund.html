@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add Funds — SimpleTip</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
+  .card { background: #fff; border-radius: 14px; padding: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 400px; width: 100%; }
+  h2 { font-size: 1.15rem; color: #3f2534; margin-bottom: 4px; }
+  .sub { font-size: 0.82rem; color: #888; margin-bottom: 18px; }
+  .balance { font-size: 1.8rem; font-weight: 700; color: #3f2534; text-align: center; margin: 12px 0; }
+  .balance-label { font-size: 0.75rem; color: #999; text-align: center; }
+
+  .amounts { display: flex; gap: 8px; justify-content: center; margin: 16px 0; }
+  .amt-btn { background: #f3f4f6; border: 2px solid #e5e7eb; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; color: #3f2534; }
+  .amt-btn:hover { border-color: #00b2e5; }
+  .amt-btn.selected { border-color: #00b2e5; background: #e8f7fc; }
+
+  .methods { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .method-btn {
+    display: flex; align-items: center; gap: 12px;
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+    padding: 14px 16px; cursor: pointer; font-size: 0.9rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .method-btn:hover { border-color: #00b2e5; box-shadow: 0 2px 8px rgba(0,178,229,0.1); }
+  .method-icon { font-size: 1.3rem; width: 28px; text-align: center; flex-shrink: 0; }
+  .method-label { font-weight: 600; color: #1a1a2e; }
+  .method-sub { font-size: 0.72rem; color: #999; }
+
+  .manual-info {
+    display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+    padding: 14px; margin-top: 12px; font-size: 0.85rem; color: #92400e; line-height: 1.4;
+  }
+  .manual-info.show { display: block; }
+  .manual-info .addr { font-family: monospace; font-weight: 600; background: #fef3c7; padding: 4px 8px; border-radius: 4px; display: inline-block; margin: 4px 0; user-select: all; }
+  .manual-info button { background: #f59e0b; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 0.85rem; cursor: pointer; margin-top: 8px; }
+
+  .demo-badge { background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-align: center; margin-bottom: 12px; }
+
+  .status { text-align: center; font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; }
+  .status.success { color: #16a34a; font-weight: 600; }
+  .status.error { color: #ef4444; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Add Funds to Your Wallet</h2>
+  <p class="sub">Choose an amount and payment method.</p>
+  <div id="demoBadge" class="demo-badge" style="display:none;">DEMO MODE — no real charges</div>
+
+  <div class="balance-label">Current balance</div>
+  <div class="balance" id="balance">$0.00</div>
+
+  <div class="amounts">
+    <button class="amt-btn" data-amount="5">$5</button>
+    <button class="amt-btn selected" data-amount="10">$10</button>
+    <button class="amt-btn" data-amount="20">$20</button>
+    <button class="amt-btn" data-amount="50">$50</button>
+  </div>
+
+  <div class="methods" id="methods">
+    <!-- Populated dynamically from /api/methods -->
+  </div>
+
+  <div class="manual-info" id="manualInfo"></div>
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+  const API = '/simpletip/api';
+  let selectedAmount = 10;
+  let wallet = null;
+  let demoMode = false;
+
+  // Load wallet from localStorage
+  try {
+    const raw = localStorage.getItem('simpletip_wallet');
+    if (raw) wallet = JSON.parse(raw);
+  } catch (e) {}
+
+  // Amount buttons
+  document.querySelectorAll('.amt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.amt-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedAmount = parseFloat(btn.dataset.amount);
+    });
+  });
+
+  // Icon map
+  const icons = {
+    card: '💳', stripe: '💳', paypal: '🅿️', zelle: '⚡',
+    cashapp: '💲', crypto: '🪙', mpesa: '📱', ilp: '🌐',
+  };
+
+  // Load available methods
+  async function loadMethods() {
+    if (wallet) {
+      const w = await fetch(`${API}/wallet`, { headers: { Authorization: `Bearer ${wallet.token}` } }).then(r => r.json());
+      if (w.balance != null) {
+        wallet.balance = w.balance;
+        localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
+      }
+    }
+    updateBalance();
+
+    const data = await fetch(`${API}/methods`).then(r => r.json());
+    demoMode = data.demoMode;
+    if (demoMode) document.getElementById('demoBadge').style.display = 'block';
+
+    const container = document.getElementById('methods');
+    container.innerHTML = '';
+
+    data.methods.forEach(m => {
+      const div = document.createElement('div');
+      div.className = 'method-btn';
+      div.innerHTML = `
+        <div class="method-icon">${icons[m.icon] || icons[m.id] || '💰'}</div>
+        <div>
+          <div class="method-label">${m.label}</div>
+          <div class="method-sub">${getMethodSub(m)}</div>
+        </div>
+      `;
+      div.addEventListener('click', () => handleMethod(m));
+      container.appendChild(div);
+    });
+  }
+
+  function getMethodSub(m) {
+    if (m.id === 'stripe') return 'Visa, Mastercard, Amex, Apple Pay, Google Pay';
+    if (m.id === 'paypal') return 'PayPal balance or linked bank/card';
+    if (m.id === 'zelle') return 'Send from your bank app';
+    if (m.id === 'cashapp') return 'Send via Cash App';
+    if (m.id === 'crypto') return m.network || 'USDT / USDC';
+    if (m.id === 'mpesa') return 'Mobile money';
+    if (m.id === 'ilp') return 'Interledger Open Payments';
+    return '';
+  }
+
+  function updateBalance() {
+    document.getElementById('balance').textContent = wallet ? `$${(wallet.balance || 0).toFixed(2)}` : '$0.00';
+  }
+
+  async function handleMethod(m) {
+    const status = document.getElementById('status');
+    const manualInfo = document.getElementById('manualInfo');
+    manualInfo.classList.remove('show');
+    status.textContent = '';
+
+    if (!wallet) {
+      status.textContent = 'Create a wallet first (go to the demo page)';
+      status.className = 'status error';
+      return;
+    }
+
+    const amount = selectedAmount;
+
+    // Stripe
+    if (m.id === 'stripe') {
+      status.textContent = 'Opening payment...';
+      const resp = await fetch(`${API}/wallet/fund/stripe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${wallet.token}` },
+        body: JSON.stringify({ amount }),
+      }).then(r => r.json());
+
+      if (resp.checkoutUrl) {
+        window.open(resp.checkoutUrl, 'simpletip-fund', 'width=450,height=600');
+        status.textContent = 'Complete payment in the popup window';
+      } else if (resp.success) {
+        // Demo mode
+        wallet.balance = resp.balance;
+        localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
+        updateBalance();
+        status.textContent = `$${amount} added (demo)`;
+        status.className = 'status success';
+        notifyOpener();
+      }
+      return;
+    }
+
+    // PayPal
+    if (m.id === 'paypal') {
+      status.textContent = 'Opening PayPal...';
+      const resp = await fetch(`${API}/wallet/fund/paypal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${wallet.token}` },
+        body: JSON.stringify({ amount }),
+      }).then(r => r.json());
+
+      if (resp.success) {
+        // Demo mode
+        wallet.balance = resp.balance;
+        localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
+        updateBalance();
+        status.textContent = `$${amount} added (demo)`;
+        status.className = 'status success';
+        notifyOpener();
+      } else if (resp.clientId) {
+        status.textContent = 'PayPal integration — coming soon. Use card for now.';
+      }
+      return;
+    }
+
+    // Manual methods (Zelle, Cash App, Crypto)
+    if (['zelle', 'cashapp', 'crypto'].includes(m.id)) {
+      let html = '';
+      if (m.id === 'zelle') {
+        html = `<strong>Send $${amount} via Zelle to:</strong><br><span class="addr">${m.address || 'not configured'}</span><br>Include your email in the memo so we can match it to your wallet.`;
+      } else if (m.id === 'cashapp') {
+        html = `<strong>Send $${amount} via Cash App to:</strong><br><span class="addr">${m.tag || 'not configured'}</span><br>Include your email in the note.`;
+      } else if (m.id === 'crypto') {
+        html = `<strong>Send $${amount} in ${m.network || 'USDT'} to:</strong><br><span class="addr">${m.address || 'not configured'}</span><br>We'll credit your wallet once confirmed on-chain.`;
+      }
+
+      if (demoMode) {
+        html += `<br><button onclick="confirmManual('${m.id}', ${amount})">Demo: credit instantly</button>`;
+      } else {
+        html += `<br><button onclick="submitManual('${m.id}', ${amount})">I've sent it</button>`;
+      }
+
+      manualInfo.innerHTML = html;
+      manualInfo.classList.add('show');
+      return;
+    }
+
+    // Fallback
+    status.textContent = `${m.label} — coming soon`;
+  }
+
+  // Manual method: mark as sent (creates pending funding)
+  async function submitManual(method, amount) {
+    const resp = await fetch(`${API}/wallet/fund/manual`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${wallet.token}` },
+      body: JSON.stringify({ amount, method }),
+    }).then(r => r.json());
+
+    const status = document.getElementById('status');
+    if (resp.fundId) {
+      status.textContent = resp.message;
+      status.className = 'status success';
+      document.getElementById('manualInfo').classList.remove('show');
+    }
+  }
+
+  // Demo: instant credit for manual methods
+  async function confirmManual(method, amount) {
+    const resp = await fetch(`${API}/wallet/fund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${wallet.token}` },
+      body: JSON.stringify({ amount }),
+    }).then(r => r.json());
+
+    if (resp.success) {
+      wallet.balance = resp.balance;
+      localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
+      updateBalance();
+      document.getElementById('status').textContent = `$${amount} added (demo)`;
+      document.getElementById('status').className = 'status success';
+      document.getElementById('manualInfo').classList.remove('show');
+      notifyOpener();
+    }
+  }
+
+  function notifyOpener() {
+    if (window.opener) {
+      window.opener.postMessage({ type: 'simpletip-wallet-updated', wallet }, '*');
+    }
+  }
+
+  // Make confirmManual available globally for onclick
+  window.confirmManual = confirmManual;
+  window.submitManual = submitManual;
+
+  loadMethods();
+</script>
+</body>
+</html>
