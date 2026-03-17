@@ -16,11 +16,13 @@ Meanwhile, the people *in* the stories — the doctors, teachers, organizers, ac
 
 ### For readers
 
-**First time you click a tip button**, you create a wallet and add funds — card, Apple Pay, Google Pay, PayPal, Venmo, Zelle, M-Pesa, crypto, whatever your SimpleTip node supports. Takes 30 seconds.
+**First time you click a tip button**, a wallet is created for you automatically — no signup, no form. A popup opens so you can add funds via card, Apple Pay, Google Pay, PayPal, Venmo, Zelle, M-Pesa, crypto, whatever your SimpleTip node supports. Takes 30 seconds. You can optionally link your email or Google account to protect your balance and access it from any device.
 
 **From then on, every tip is one click.** Click $3 under an article → green flash → done. Your wallet balance decrements. No checkout, no popup, no leaving the page. Works on every site that has the widget — your wallet follows you everywhere.
 
 **Split tips.** When an article covers real people or causes, a slider lets you split your tip between the author and the subject. 50/50, 70/30, whatever feels right. Both get paid.
+
+**Your balance is safe.** Funds are stored server-side, not in your browser. If you link your email, you can recover your wallet from any device. No account creation required — just an email, whenever you're ready.
 
 ### For authors and journalists
 
@@ -208,16 +210,17 @@ Full deployment docs coming. If you're interested in running a node, open an iss
 - **Database:** SQLite (single node) or Postgres (production scale).
 - **Payments in:** Stripe Checkout (cards, Apple Pay, Google Pay, bank), PayPal.
 - **Payments out:** PayPal Payouts, Wise API, Chimoney (M-Pesa), manual for others.
-- **Auth:** Email (magic link or password), Google OAuth, ATProto — lightweight wallet creation.
+- **Auth:** Anonymous-first — wallet auto-created on first tip. Optional email linking or Google OAuth for recovery. ATProto planned.
 - **Federation:** ATProto (planned) — publish tip records for portability and cross-node verification.
 
 ## Status
 
-**Working demo:** Web component, wallet system, tip ledger, author registration, split tips, multi-method funding.
+**Working demo:** Web component, zero-friction wallet (auto-created, email recovery), tip ledger, author registration, split tips, multi-method funding, balance badge.
 
 **Next:**
 - Stripe integration (real payments)
-- Email magic link auth
+- Google OAuth one-click wallet linking
+- Magic link recovery emails
 - Author payout dashboard
 - ATProto record publishing
 - Ghost blog theme integration
