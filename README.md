@@ -16,7 +16,7 @@ Meanwhile, the people *in* the stories — the doctors, teachers, organizers, ac
 
 ### For readers
 
-**First time you click a tip button**, a wallet is created for you automatically — no signup, no form. A popup opens so you can add funds via card, Apple Pay, Google Pay, PayPal, Venmo, Zelle, M-Pesa, crypto, whatever your SimpleTip node supports. Takes 30 seconds. You can optionally link your email or Google account to protect your balance and access it from any device.
+**First time you click a tip button**, a wallet is created for you automatically — no signup, no form. A popup opens so you can add funds via card, Apple Pay, Google Pay, PayPal, Venmo, Zelle, M-Pesa, crypto, whatever your SimpleTip node supports. Takes 30 seconds. You can optionally link your email, Google account, or ATProto identity to protect your balance and access it from any device.
 
 **From then on, every tip is one click.** Click $3 under an article → green flash → done. Your wallet balance decrements. No checkout, no popup, no leaving the page. Works on every site that has the widget — your wallet follows you everywhere.
 
@@ -210,7 +210,7 @@ Full deployment docs coming. If you're interested in running a node, open an iss
 - **Database:** SQLite (single node) or Postgres (production scale).
 - **Payments in:** Stripe Checkout (cards, Apple Pay, Google Pay, bank), PayPal.
 - **Payments out:** PayPal Payouts, Wise API, Chimoney (M-Pesa), manual for others.
-- **Auth:** Anonymous-first — wallet auto-created on first tip. Optional email linking or Google OAuth for recovery. ATProto planned.
+- **Auth:** Anonymous-first — wallet auto-created on first tip. Optional email, Google OAuth, or ATProto OAuth for recovery and cross-device access.
 - **Federation:** ATProto (planned) — publish tip records for portability and cross-node verification.
 
 ## Status
@@ -219,7 +219,7 @@ Full deployment docs coming. If you're interested in running a node, open an iss
 
 **Next:**
 - Stripe integration (real payments)
-- Google OAuth one-click wallet linking
+- Google OAuth / ATProto OAuth one-click wallet linking
 - Magic link recovery emails
 - Author payout dashboard
 - ATProto record publishing
