@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SimpleTip — One-click tipping for any website</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #1a1a2e; }
+  .page { max-width: 720px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 1.5rem; margin-bottom: 4px; color: #3f2534; }
+  .tagline { color: #666; margin-bottom: 24px; font-size: 0.95rem; }
+  .section { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .section h2 { font-size: 1rem; color: #3f2534; margin-bottom: 10px; }
+  .section p { font-size: 0.88rem; color: #555; line-height: 1.5; margin-bottom: 12px; }
+  .nav { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
+  .nav a { background: #3f2534; color: #fff; padding: 7px 14px; border-radius: 6px; text-decoration: none; font-size: 0.82rem; }
+  .nav a:hover { background: #5a3a4c; }
+  .article-mock { background: #fafafa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 18px; margin-bottom: 14px; }
+  .article-mock h3 { font-size: 0.95rem; margin-bottom: 6px; }
+  .article-mock .byline { font-size: 0.78rem; color: #888; margin-bottom: 10px; }
+  .article-mock .body { font-size: 0.88rem; color: #444; line-height: 1.5; }
+  .demo-wallet-controls { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 0.85rem; }
+  .demo-wallet-controls button { background: #00b2e5; color: #fff; border: none; border-radius: 5px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; margin: 4px 4px 4px 0; }
+  .demo-wallet-controls button:hover { background: #0090c0; }
+  .demo-wallet-controls button.danger { background: #ef4444; }
+  .demo-wallet-controls .balance { font-weight: 600; color: #3f2534; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>SimpleTip</h1>
+  <p class="tagline">One-click tipping for any website. No wallet setup required.</p>
+
+  <nav class="nav">
+    <a href="index.html">Demo</a>
+    <a href="setup.html">Author Setup</a>
+    <a href="dashboard.html">My Tips</a>
+  </nav>
+
+  <!-- Demo wallet controls -->
+  <div class="demo-wallet-controls">
+    <strong>Demo wallet controls</strong> (for testing — readers wouldn't see this)<br>
+    <span id="walletStatus">No wallet</span> · <span class="balance" id="balanceDisplay">$0.00</span>
+    <br>
+    <button onclick="createDemoWallet()">Create wallet</button>
+    <button onclick="addDemoFunds(20)">Add $20</button>
+    <button onclick="addDemoFunds(50)">Add $50</button>
+    <button class="danger" onclick="clearDemoWallet()">Clear wallet</button>
+  </div>
+
+  <!-- Demo 1: Single author -->
+  <div class="section">
+    <h2>1. Tip the author — one click</h2>
+    <p>Embedded at the bottom of any article. Reader clicks a dollar amount, tip goes through instantly.</p>
+
+    <div class="article-mock">
+      <h3>How Open Source is Changing Healthcare Access</h3>
+      <div class="byline">By Sarah Chen · March 15, 2026</div>
+      <div class="body">In rural clinics across Southeast Asia, open-source medical software is quietly saving lives. What started as a side project by three developers in Manila has become the backbone of healthcare delivery in places where commercial software is unaffordable...</div>
+    </div>
+
+    <simple-tip
+      author="sarah-chen"
+      author-name="Sarah Chen"
+      author-img="https://i.pravatar.cc/80?img=5">
+    </simple-tip>
+  </div>
+
+  <!-- Demo 2: Split tip -->
+  <div class="section">
+    <h2>2. Split tip — author + subject</h2>
+    <p>Reader splits between the journalist and the people in the story. Drag the slider.</p>
+
+    <div class="article-mock">
+      <h3>Inside Sudan's Emergency Rooms: Doctors Without Supplies</h3>
+      <div class="byline">By James Okafor · March 12, 2026</div>
+      <div class="body">In the besieged hospitals of Khartoum, medical staff work 20-hour shifts with dwindling supplies. Dr. Amira Hassan hasn't slept in two days. "We need everything," she says...</div>
+    </div>
+
+    <simple-tip
+      author="james-okafor"
+      author-name="James Okafor"
+      author-img="https://i.pravatar.cc/80?img=12"
+      subject="sudan-er-teams"
+      subject-label="Sudan ER Medical Teams"
+      subject-img="https://i.pravatar.cc/80?img=33">
+    </simple-tip>
+  </div>
+
+  <!-- Demo 3: Minimal embed -->
+  <div class="section">
+    <h2>3. Minimal — just a name</h2>
+    <p>The simplest possible embed. No images, no subject. Just the tip bar.</p>
+
+    <simple-tip author="maria-lopez" author-name="Maria Lopez"></simple-tip>
+  </div>
+</div>
+
+<script src="simpletip.js"></script>
+<script>
+  const API = '/simpletip/api';
+
+  function updateWalletDisplay() {
+    const raw = localStorage.getItem('simpletip_wallet');
+    const w = raw ? JSON.parse(raw) : null;
+    document.getElementById('walletStatus').textContent = w ? `Wallet: ${w.name || w.email || 'active'}` : 'No wallet';
+    document.getElementById('balanceDisplay').textContent = w ? `$${(w.balance || 0).toFixed(2)}` : '$0.00';
+  }
+
+  async function createDemoWallet() {
+    const resp = await fetch(`${API}/wallet/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'demo@example.com', name: 'Demo Reader' }),
+    });
+    const data = await resp.json();
+    localStorage.setItem('simpletip_wallet', JSON.stringify({
+      token: data.token, balance: data.balance, name: data.name || 'Demo Reader', email: 'demo@example.com'
+    }));
+    updateWalletDisplay();
+  }
+
+  async function addDemoFunds(amount) {
+    const raw = localStorage.getItem('simpletip_wallet');
+    if (!raw) { alert('Create wallet first'); return; }
+    const w = JSON.parse(raw);
+    const resp = await fetch(`${API}/wallet/fund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${w.token}` },
+      body: JSON.stringify({ amount }),
+    });
+    const data = await resp.json();
+    if (data.success) {
+      w.balance = data.balance;
+      localStorage.setItem('simpletip_wallet', JSON.stringify(w));
+      updateWalletDisplay();
+    }
+  }
+
+  function clearDemoWallet() {
+    localStorage.removeItem('simpletip_wallet');
+    updateWalletDisplay();
+  }
+
+  // Listen for tip events from the component
+  document.addEventListener('tip', (e) => {
+    updateWalletDisplay();
+  });
+
+  updateWalletDisplay();
+</script>
+</body>
+</html>
