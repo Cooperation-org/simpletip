@@ -176,7 +176,7 @@
           <span class="split-label">${esc(subjectName)}</span>
         </div>` : ''}
         <div class="wallet-hint" id="walletHint">
-          Your wallet is empty. <a id="addFundsLink">Add funds</a> to tip with one click.
+          <a id="addFundsLink">Add funds</a> to your wallet to tip with one click.
         </div>
         <div class="footer">
           <a href="https://linkedtrust.us" target="_blank">SimpleTip by LinkedTrust</a>
@@ -292,45 +292,21 @@
           }
         }
 
-        // No wallet or wallet error — anonymous tip via Stripe
-        const result = await apiPost('/tip/checkout', {
-          author,
-          authorName,
-          subject: subject || undefined,
-          subjectName: subjectName || undefined,
-          amount,
-          splitPct: subject ? splitPct : undefined,
-          returnUrl: window.location.href,
-        });
-
-        if (result.checkoutUrl) {
-          // For anonymous tips, we do need to go to Stripe — but in a popup, not navigation
-          const popup = window.open(result.checkoutUrl, 'simpletip-pay',
-            'width=450,height=600,scrollbars=yes');
-
-          // Listen for completion
-          const checkClosed = setInterval(() => {
-            if (popup && popup.closed) {
-              clearInterval(checkClosed);
-              // Optimistically show success (Stripe webhook confirms later)
-              this._showSuccess(bar, amountsDiv, successMsg, successText, walletHint,
-                `$${amount} sent!`, allBtns, btn, amount);
-            }
-          }, 500);
-
-          // Also listen for postMessage from our success page
-          const msgHandler = (event) => {
-            if (event.data && event.data.type === 'simpletip-payment-complete') {
-              clearInterval(checkClosed);
-              window.removeEventListener('message', msgHandler);
-              if (popup && !popup.closed) popup.close();
-              this._showSuccess(bar, amountsDiv, successMsg, successText, walletHint,
-                `$${amount} sent!`, allBtns, btn, amount);
-            }
-          };
-          window.addEventListener('message', msgHandler);
+        // No wallet — create one automatically, then open funding popup
+        const newWallet = await apiPost('/wallet/create', {});
+        if (newWallet.token) {
+          saveWallet(newWallet);
+          // Open fund popup so they can add money
+          this._openFundingPopup(author);
+          walletHint.classList.add('show');
+          bar.classList.add('needs-funds');
+          allBtns.forEach(b => b.disabled = false);
+          btn.textContent = `$${amount}`;
+          setTimeout(() => {
+            bar.classList.remove('needs-funds');
+          }, 3000);
         } else {
-          throw new Error(result.error || 'checkout failed');
+          throw new Error(newWallet.error || 'wallet creation failed');
         }
       } catch (err) {
         // Error — reset buttons

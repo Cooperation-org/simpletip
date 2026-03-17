@@ -43,6 +43,36 @@
   .status { text-align: center; font-size: 0.85rem; margin-top: 12px; min-height: 1.2em; }
   .status.success { color: #16a34a; font-weight: 600; }
   .status.error { color: #ef4444; }
+
+  /* Protect wallet nudge */
+  .protect-nudge {
+    display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;
+    padding: 12px; margin-top: 12px; font-size: 0.82rem; color: #166534; text-align: center;
+  }
+  .protect-nudge.show { display: block; }
+  .protect-nudge input {
+    width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+    font-size: 0.85rem; margin: 8px 0 4px;
+  }
+  .protect-nudge .link-btn {
+    background: #22c55e; color: #fff; border: none; border-radius: 6px;
+    padding: 6px 14px; font-size: 0.82rem; cursor: pointer; font-weight: 600;
+  }
+  .protect-nudge .skip-link {
+    display: inline-block; margin-top: 6px; font-size: 0.72rem; color: #999;
+    cursor: pointer; text-decoration: underline;
+  }
+
+  /* Google Sign-In style button */
+  .google-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: #fff; border: 1px solid #dadce0; border-radius: 8px;
+    padding: 10px 16px; cursor: pointer; font-size: 0.88rem; font-weight: 500;
+    color: #3c4043; width: 100%; margin-bottom: 8px;
+    transition: box-shadow 0.15s;
+  }
+  .google-btn:hover { box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+  .google-btn svg { width: 18px; height: 18px; }
 </style>
 </head>
 <body>
@@ -67,6 +97,15 @@
 
   <div class="manual-info" id="manualInfo"></div>
   <div class="status" id="status"></div>
+
+  <!-- Protect wallet nudge — shows after first funding for anonymous wallets -->
+  <div class="protect-nudge" id="protectNudge">
+    <strong>Protect your wallet</strong><br>
+    Add your email so you can recover your balance from any device.
+    <input type="email" id="linkEmail" placeholder="you@example.com">
+    <button class="link-btn" id="linkBtn">Save</button>
+    <br><span class="skip-link" id="skipLink">Skip for now</span>
+  </div>
 </div>
 
 <script>
@@ -92,12 +131,30 @@
 
   // Icon map
   const icons = {
-    card: '💳', stripe: '💳', paypal: '🅿️', zelle: '⚡',
-    cashapp: '💲', crypto: '🪙', mpesa: '📱', ilp: '🌐',
+    card: '\u{1F4B3}', stripe: '\u{1F4B3}', paypal: '\u{1F17F}\uFE0F', zelle: '\u26A1',
+    cashapp: '\u{1F4B2}', crypto: '\u{1FA99}', mpesa: '\u{1F4F1}', ilp: '\u{1F310}',
   };
+
+  // If no wallet exists at all, create one automatically
+  async function ensureWallet() {
+    if (wallet && wallet.token) return;
+
+    const resp = await fetch(`${API}/wallet/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    }).then(r => r.json());
+
+    if (resp.token) {
+      wallet = { token: resp.token, balance: resp.balance || 0, name: resp.name || '', email: resp.email || null };
+      localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
+    }
+  }
 
   // Load available methods
   async function loadMethods() {
+    await ensureWallet();
+
     if (wallet) {
       const w = await fetch(`${API}/wallet`, { headers: { Authorization: `Bearer ${wallet.token}` } }).then(r => r.json());
       if (w.balance != null) {
@@ -118,7 +175,7 @@
       const div = document.createElement('div');
       div.className = 'method-btn';
       div.innerHTML = `
-        <div class="method-icon">${icons[m.icon] || icons[m.id] || '💰'}</div>
+        <div class="method-icon">${icons[m.icon] || icons[m.id] || '\u{1F4B0}'}</div>
         <div>
           <div class="method-label">${m.label}</div>
           <div class="method-sub">${getMethodSub(m)}</div>
@@ -144,6 +201,18 @@
     document.getElementById('balance').textContent = wallet ? `$${(wallet.balance || 0).toFixed(2)}` : '$0.00';
   }
 
+  // Check if wallet is anonymous (no real email linked)
+  function isAnonymousWallet() {
+    return !wallet || !wallet.email || wallet.email.endsWith('@wallet.local');
+  }
+
+  // Show "protect your wallet" nudge after funding
+  function showProtectNudge() {
+    if (isAnonymousWallet()) {
+      document.getElementById('protectNudge').classList.add('show');
+    }
+  }
+
   async function handleMethod(m) {
     const status = document.getElementById('status');
     const manualInfo = document.getElementById('manualInfo');
@@ -151,9 +220,13 @@
     status.textContent = '';
 
     if (!wallet) {
-      status.textContent = 'Create a wallet first (go to the demo page)';
-      status.className = 'status error';
-      return;
+      status.textContent = 'Setting up wallet...';
+      await ensureWallet();
+      if (!wallet) {
+        status.textContent = 'Could not create wallet';
+        status.className = 'status error';
+        return;
+      }
     }
 
     const amount = selectedAmount;
@@ -171,13 +244,13 @@
         window.open(resp.checkoutUrl, 'simpletip-fund', 'width=450,height=600');
         status.textContent = 'Complete payment in the popup window';
       } else if (resp.success) {
-        // Demo mode
         wallet.balance = resp.balance;
         localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
         updateBalance();
         status.textContent = `$${amount} added (demo)`;
         status.className = 'status success';
         notifyOpener();
+        showProtectNudge();
       }
       return;
     }
@@ -192,13 +265,13 @@
       }).then(r => r.json());
 
       if (resp.success) {
-        // Demo mode
         wallet.balance = resp.balance;
         localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
         updateBalance();
         status.textContent = `$${amount} added (demo)`;
         status.className = 'status success';
         notifyOpener();
+        showProtectNudge();
       } else if (resp.clientId) {
         status.textContent = 'PayPal integration — coming soon. Use card for now.';
       }
@@ -263,6 +336,7 @@
       document.getElementById('status').className = 'status success';
       document.getElementById('manualInfo').classList.remove('show');
       notifyOpener();
+      showProtectNudge();
     }
   }
 
@@ -271,6 +345,34 @@
       window.opener.postMessage({ type: 'simpletip-wallet-updated', wallet }, '*');
     }
   }
+
+  // Link email to wallet
+  document.getElementById('linkBtn').addEventListener('click', async () => {
+    const email = document.getElementById('linkEmail').value.trim();
+    if (!email) return;
+
+    const resp = await fetch(`${API}/wallet/link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${wallet.token}` },
+      body: JSON.stringify({ email }),
+    }).then(r => r.json());
+
+    if (resp.success) {
+      wallet.email = email;
+      localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
+      document.getElementById('protectNudge').classList.remove('show');
+      document.getElementById('status').textContent = 'Email linked — you can recover your wallet anytime';
+      document.getElementById('status').className = 'status success';
+      notifyOpener();
+    } else {
+      document.getElementById('status').textContent = resp.error || 'Could not link email';
+      document.getElementById('status').className = 'status error';
+    }
+  });
+
+  document.getElementById('skipLink').addEventListener('click', () => {
+    document.getElementById('protectNudge').classList.remove('show');
+  });
 
   // Make confirmManual available globally for onclick
   window.confirmManual = confirmManual;

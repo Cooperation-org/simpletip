@@ -188,20 +188,58 @@ app.get('/api/author/:slug', (req, res) => {
 // ── Wallet ──────────────────────────────────────────────────
 
 app.post('/api/wallet/create', (req, res) => {
-  const { email, name } = req.body;
-  if (!email) return res.status(400).json({ error: 'email required' });
+  const { email, name, googleIdToken } = req.body;
 
-  const existing = db.prepare('SELECT * FROM wallets WHERE email = ?').get(email);
-  if (existing) {
-    return res.json({ token: existing.token, balance: existing.balance, name: existing.name, existing: true });
+  // If Google ID token provided, verify and use email from it
+  // (For now, trust the email from the frontend — in production, verify the token server-side)
+  // If email provided, check for existing wallet
+  if (email) {
+    const existing = db.prepare('SELECT * FROM wallets WHERE email = ?').get(email);
+    if (existing) {
+      return res.json({ token: existing.token, balance: existing.balance, name: existing.name, email: existing.email, existing: true });
+    }
   }
 
   const id = crypto.randomBytes(8).toString('hex');
   const token = crypto.randomBytes(32).toString('hex');
+  // Anonymous wallets get a placeholder email (never null — allows linking later)
+  const walletEmail = email || `anon-${id}@wallet.local`;
   db.prepare('INSERT INTO wallets (id, email, name, token) VALUES (?, ?, ?, ?)')
-    .run(id, email, name || '', token);
+    .run(id, walletEmail, name || '', token);
 
-  res.json({ token, balance: 0, name: name || '' });
+  res.json({ token, balance: 0, name: name || '', email: email || null });
+});
+
+// Link an email/Google account to an existing wallet (for recovery)
+app.post('/api/wallet/link', (req, res) => {
+  if (!req.wallet) return res.status(401).json({ error: 'not authenticated' });
+  const { email, name } = req.body;
+  if (!email) return res.status(400).json({ error: 'email required' });
+
+  // Check if another wallet already has this email
+  const other = db.prepare('SELECT id FROM wallets WHERE email = ? AND id != ?').get(email, req.wallet.id);
+  if (other) {
+    return res.status(409).json({ error: 'email already linked to another wallet' });
+  }
+
+  db.prepare('UPDATE wallets SET email = ?, name = CASE WHEN name = \'\' THEN ? ELSE name END WHERE id = ?')
+    .run(email, name || '', req.wallet.id);
+  res.json({ success: true, email });
+});
+
+// Recover wallet by email (returns token)
+app.post('/api/wallet/recover', (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'email required' });
+
+  const wallet = db.prepare('SELECT * FROM wallets WHERE email = ?').get(email);
+  if (!wallet || wallet.email.endsWith('@wallet.local')) {
+    return res.status(404).json({ error: 'no wallet found for this email' });
+  }
+
+  // In production: send magic link or verify Google token, don't just return token
+  // For demo: return token directly
+  res.json({ token: wallet.token, balance: wallet.balance, name: wallet.name, email: wallet.email });
 });
 
 app.get('/api/wallet', (req, res) => {
