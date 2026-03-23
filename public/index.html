@@ -25,6 +25,34 @@
   .demo-wallet-controls button:hover { background: #0090c0; }
   .demo-wallet-controls button.danger { background: #ef4444; }
   .demo-wallet-controls .balance { font-weight: 600; color: #3f2534; }
+
+  /* Embed instructions */
+  .embed-section { background: #1a1a2e; color: #e2e8f0; border-radius: 10px; padding: 24px; margin-bottom: 20px; }
+  .embed-section h2 { color: #fff; font-size: 1.1rem; margin-bottom: 12px; }
+  .embed-section p { font-size: 0.88rem; color: #94a3b8; line-height: 1.5; margin-bottom: 12px; }
+  .embed-section .step { margin-bottom: 16px; }
+  .embed-section .step-num { display: inline-block; background: #00b2e5; color: #fff; width: 24px; height: 24px; border-radius: 50%; text-align: center; line-height: 24px; font-size: 0.75rem; font-weight: 700; margin-right: 8px; }
+  .embed-section .step-text { font-size: 0.88rem; color: #e2e8f0; font-weight: 600; }
+  .code-block {
+    background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+    padding: 14px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.78rem;
+    color: #22c55e; overflow-x: auto; white-space: pre; margin: 8px 0 4px;
+    position: relative; line-height: 1.5;
+  }
+  .code-block .tag { color: #f472b6; }
+  .code-block .attr { color: #60a5fa; }
+  .code-block .val { color: #fbbf24; }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: #334155; color: #94a3b8; border: none; border-radius: 4px;
+    padding: 4px 10px; font-size: 0.7rem; cursor: pointer;
+  }
+  .copy-btn:hover { background: #475569; color: #fff; }
+  .copy-btn.copied { background: #16a34a; color: #fff; }
+  .embed-section .note { font-size: 0.75rem; color: #64748b; font-style: italic; }
+  .embed-section a { color: #00b2e5; }
+  .platform-tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+  .platform-tag { background: #334155; color: #94a3b8; padding: 3px 10px; border-radius: 4px; font-size: 0.72rem; }
 </style>
 </head>
 <body>
@@ -35,8 +63,55 @@
   <nav class="nav">
     <a href="index.html">Demo</a>
     <a href="setup.html">Author Setup</a>
-    <a href="dashboard.html">My Tips</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="https://github.com/Cooperation-org/simpletip" target="_blank">GitHub</a>
   </nav>
+
+  <!-- ── Embed instructions ─────────────────────────────── -->
+  <div class="embed-section" id="embedSection">
+    <h2>Embed SimpleTip in your site</h2>
+    <p>Add tipping to any article in two lines of HTML. Works everywhere JavaScript runs.</p>
+
+    <div class="platform-tags">
+      <span class="platform-tag">Ghost</span>
+      <span class="platform-tag">WordPress</span>
+      <span class="platform-tag">Substack</span>
+      <span class="platform-tag">Hugo</span>
+      <span class="platform-tag">Jekyll</span>
+      <span class="platform-tag">HTML</span>
+    </div>
+
+    <div class="step">
+      <span class="step-num">1</span>
+      <span class="step-text"><a href="setup.html">Register as an author</a> to get your slug</span>
+    </div>
+
+    <div class="step">
+      <span class="step-num">2</span>
+      <span class="step-text">Paste this at the bottom of your articles:</span>
+    </div>
+
+    <div class="code-block" id="embedBasic"><button class="copy-btn" onclick="copyCode('embedBasic')">Copy</button><span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="val">"https://demos.linkedtrust.us/simpletip/simpletip.js"</span><span class="tag">&gt;&lt;/script&gt;</span>
+<span class="tag">&lt;simple-tip</span> <span class="attr">author</span>=<span class="val">"your-slug"</span> <span class="attr">author-name</span>=<span class="val">"Your Name"</span><span class="tag">&gt;&lt;/simple-tip&gt;</span></div>
+
+    <div class="step" style="margin-top: 16px;">
+      <span class="step-num">+</span>
+      <span class="step-text">Split tips (author + article subject):</span>
+    </div>
+
+    <div class="code-block" id="embedSplit"><button class="copy-btn" onclick="copyCode('embedSplit')">Copy</button><span class="tag">&lt;simple-tip</span>
+  <span class="attr">author</span>=<span class="val">"your-slug"</span>
+  <span class="attr">author-name</span>=<span class="val">"Your Name"</span>
+  <span class="attr">subject</span>=<span class="val">"subject-slug"</span>
+  <span class="attr">subject-label</span>=<span class="val">"Subject Name or Cause"</span><span class="tag">&gt;</span>
+<span class="tag">&lt;/simple-tip&gt;</span></div>
+
+    <p class="note">For Ghost: add as an HTML card, or put the script tag in your theme's post.hbs template so it appears on every article.<br>
+    For WordPress: add as a Custom HTML block.<br>
+    The script only needs to be included once per page.</p>
+  </div>
+
+  <!-- ── Live demos ─────────────────────────────────────── -->
 
   <!-- Demo wallet controls -->
   <div class="demo-wallet-controls">
@@ -51,26 +126,25 @@
 
   <!-- Demo 1: Single author -->
   <div class="section">
-    <h2>1. Tip the author — one click</h2>
-    <p>Embedded at the bottom of any article. Reader clicks a dollar amount, tip goes through instantly.</p>
+    <h2>Try it: Tip the author</h2>
+    <p>Embedded at the bottom of any article. Reader clicks a dollar amount — tip or pledge goes through instantly.</p>
 
     <div class="article-mock">
       <h3>How Open Source is Changing Healthcare Access</h3>
-      <div class="byline">By Sarah Chen · March 15, 2026</div>
+      <div class="byline">By Golda Velez · March 23, 2026</div>
       <div class="body">In rural clinics across Southeast Asia, open-source medical software is quietly saving lives. What started as a side project by three developers in Manila has become the backbone of healthcare delivery in places where commercial software is unaffordable...</div>
     </div>
 
     <simple-tip
-      author="sarah-chen"
-      author-name="Sarah Chen"
-      author-img="https://i.pravatar.cc/80?img=5">
+      author="golda-velez"
+      author-name="Golda Velez">
     </simple-tip>
   </div>
 
   <!-- Demo 2: Split tip -->
   <div class="section">
-    <h2>2. Split tip — author + subject</h2>
-    <p>Reader splits between the journalist and the people in the story. Drag the slider.</p>
+    <h2>Try it: Split tip — author + subject</h2>
+    <p>When the article covers someone who could use support, readers split between the journalist and the subject.</p>
 
     <div class="article-mock">
       <h3>Inside Sudan's Emergency Rooms: Doctors Without Supplies</h3>
@@ -83,15 +157,14 @@
       author-name="James Okafor"
       author-img="https://i.pravatar.cc/80?img=12"
       subject="sudan-er-teams"
-      subject-label="Sudan ER Medical Teams"
-      subject-img="https://i.pravatar.cc/80?img=33">
+      subject-label="Sudan ER Medical Teams">
     </simple-tip>
   </div>
 
-  <!-- Demo 3: Minimal embed -->
+  <!-- Demo 3: Minimal -->
   <div class="section">
-    <h2>3. Minimal — just a name</h2>
-    <p>The simplest possible embed. No images, no subject. Just the tip bar.</p>
+    <h2>Minimal embed</h2>
+    <p>Just a name. Two lines of code.</p>
 
     <simple-tip author="maria-lopez" author-name="Maria Lopez"></simple-tip>
   </div>
@@ -101,10 +174,22 @@
 <script>
   const API = '/simpletip/api';
 
+  function copyCode(id) {
+    const block = document.getElementById(id);
+    // Get text content without the copy button text
+    const text = block.textContent.replace('Copy', '').replace('Copied!', '').trim();
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = block.querySelector('.copy-btn');
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
   function updateWalletDisplay() {
     const raw = localStorage.getItem('simpletip_wallet');
     const w = raw ? JSON.parse(raw) : null;
-    document.getElementById('walletStatus').textContent = w ? `Wallet: ${w.name || w.email || 'active'}` : 'No wallet';
+    document.getElementById('walletStatus').textContent = w ? `Wallet: ${w.name || w.handle || w.email || 'active'}` : 'No wallet';
     document.getElementById('balanceDisplay').textContent = w ? `$${(w.balance || 0).toFixed(2)}` : '$0.00';
   }
 
@@ -143,9 +228,15 @@
     updateWalletDisplay();
   }
 
-  // Listen for tip events from the component
-  document.addEventListener('tip', (e) => {
-    updateWalletDisplay();
+  // Listen for tip/pledge events
+  document.addEventListener('tip', updateWalletDisplay);
+  document.addEventListener('pledge', updateWalletDisplay);
+
+  // Listen for auth from login popup
+  window.addEventListener('message', (event) => {
+    if (event.data && (event.data.type === 'simpletip-auth' || event.data.type === 'simpletip-wallet-updated')) {
+      updateWalletDisplay();
+    }
   });
 
   updateWalletDisplay();
