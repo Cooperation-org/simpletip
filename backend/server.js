@@ -680,7 +680,7 @@ app.get('/client-metadata.json', (req, res) => {
     client_name: config.nodeName || 'SimpleTip',
     client_uri: nodeUrl,
     redirect_uris: [`${nodeUrl}/api/auth/bluesky/callback`],
-    scope: 'atproto transition:generic',
+    scope: 'atproto',
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'none',
@@ -713,7 +713,7 @@ async function setupBlueskyOAuth() {
         client_name: config.nodeName || 'SimpleTip',
         client_uri: nodeUrl,
         redirect_uris: [`${nodeUrl}/api/auth/bluesky/callback`],
-        scope: 'atproto transition:generic',
+        scope: 'atproto',
         grant_types: ['authorization_code', 'refresh_token'],
         response_types: ['code'],
         token_endpoint_auth_method: 'none',
@@ -741,7 +741,7 @@ app.get('/api/auth/bluesky', async (req, res) => {
 
   try {
     const url = await oauthClient.authorize(handle, {
-      scope: 'atproto transition:generic',
+      scope: 'atproto',
     });
     res.json({ url: url.toString() });
   } catch (err) {
