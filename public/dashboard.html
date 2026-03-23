@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Author Dashboard — SimpleTip</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #1a1a2e; }
+  .page { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 1.3rem; color: #3f2534; margin-bottom: 4px; }
+  .sub { color: #888; font-size: 0.85rem; margin-bottom: 20px; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .stat-value { font-size: 1.6rem; font-weight: 700; color: #3f2534; }
+  .stat-label { font-size: 0.75rem; color: #999; margin-top: 2px; }
+  .stat-card.pledges .stat-value { color: #0085ff; }
+
+  .section { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .section h2 { font-size: 0.95rem; color: #3f2534; margin-bottom: 10px; }
+
+  .tip-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 0.85rem; }
+  .tip-row:last-child { border-bottom: none; }
+  .tip-amount { font-weight: 700; color: #16a34a; }
+  .tip-amount.pledge { color: #0085ff; }
+  .tip-from { color: #666; }
+  .tip-date { font-size: 0.72rem; color: #999; }
+  .tip-source { font-size: 0.65rem; background: #f3f4f6; padding: 2px 6px; border-radius: 3px; color: #888; }
+
+  .empty { text-align: center; padding: 20px; color: #999; font-size: 0.88rem; }
+
+  .slug-input { display: flex; gap: 8px; margin-bottom: 20px; }
+  .slug-input input { flex: 1; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.9rem; }
+  .slug-input input:focus { outline: none; border-color: #00b2e5; }
+  .slug-input button { padding: 10px 18px; background: #00b2e5; color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+  .slug-input button:hover { background: #0090c0; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Author Dashboard</h1>
+  <p class="sub">See your tips and pledges.</p>
+
+  <div class="slug-input">
+    <input type="text" id="slugInput" placeholder="your-author-slug (e.g. james-okafor)">
+    <button id="loadBtn">Load</button>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="totalReceived">$0</div>
+        <div class="stat-label">Total received</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="tipCount">0</div>
+        <div class="stat-label">Tips</div>
+      </div>
+      <div class="stat-card pledges">
+        <div class="stat-value" id="totalPledged">$0</div>
+        <div class="stat-label">Pending pledges</div>
+      </div>
+      <div class="stat-card pledges">
+        <div class="stat-value" id="pledgeCount">0</div>
+        <div class="stat-label">Pledgers</div>
+      </div>
+    </div>
+
+    <div class="section" id="pledgesSection" style="display:none;">
+      <h2>Pending Pledges</h2>
+      <div id="pledgesList"></div>
+    </div>
+
+    <div class="section">
+      <h2>Recent Tips</h2>
+      <div id="tipsList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = '/simpletip/api';
+
+  // Check URL param
+  const params = new URLSearchParams(window.location.search);
+  const slugParam = params.get('author');
+  if (slugParam) {
+    document.getElementById('slugInput').value = slugParam;
+    loadDashboard(slugParam);
+  }
+
+  document.getElementById('loadBtn').addEventListener('click', () => {
+    const slug = document.getElementById('slugInput').value.trim();
+    if (slug) loadDashboard(slug);
+  });
+  document.getElementById('slugInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('loadBtn').click();
+  });
+
+  async function loadDashboard(slug) {
+    const resp = await fetch(`${API}/author/${slug}/dashboard`);
+    if (!resp.ok) {
+      document.getElementById('dashboard').style.display = 'none';
+      alert('Author not found');
+      return;
+    }
+    const data = await resp.json();
+
+    document.getElementById('dashboard').style.display = '';
+    document.getElementById('totalReceived').textContent = `$${(data.stats.totalReceived || 0).toFixed(2)}`;
+    document.getElementById('tipCount').textContent = data.stats.tipCount;
+    document.getElementById('totalPledged').textContent = `$${(data.stats.totalPledged || 0).toFixed(2)}`;
+    document.getElementById('pledgeCount').textContent = data.stats.pledgeCount;
+
+    // Pledges
+    const pledgesSection = document.getElementById('pledgesSection');
+    const pledgesList = document.getElementById('pledgesList');
+    if (data.pendingPledges.length > 0) {
+      pledgesSection.style.display = '';
+      pledgesList.innerHTML = data.pendingPledges.map(p => `
+        <div class="tip-row">
+          <span>
+            <span class="tip-amount pledge">$${p.amount.toFixed(2)}</span>
+            <span class="tip-from">from ${p.pledger_handle || p.pledger_name || 'anonymous'}</span>
+          </span>
+          <span class="tip-date">${new Date(p.created_at).toLocaleDateString()}</span>
+        </div>
+      `).join('');
+    } else {
+      pledgesSection.style.display = 'none';
+    }
+
+    // Tips
+    const tipsList = document.getElementById('tipsList');
+    if (data.tips.length > 0) {
+      tipsList.innerHTML = data.tips.map(t => `
+        <div class="tip-row">
+          <span>
+            <span class="tip-amount">$${t.author_amount.toFixed(2)}</span>
+            <span class="tip-from">from ${t.tipper_handle || t.tipper_name || 'anonymous'}</span>
+            <span class="tip-source">${t.source}</span>
+          </span>
+          <span class="tip-date">${new Date(t.created_at).toLocaleDateString()}</span>
+        </div>
+      `).join('');
+    } else {
+      tipsList.innerHTML = '<div class="empty">No tips yet. Share your embed code!</div>';
+    }
+  }
+</script>
+</body>
+</html>

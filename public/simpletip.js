@@ -3,14 +3,17 @@
  *
  * <simple-tip author="james-okafor" author-name="James Okafor"></simple-tip>
  *
- * One click to tip. No page navigation. No popups (unless wallet empty).
- * Color flash confirms the tip inline.
+ * Three states:
+ *   1. Logged in + has balance → Tip buttons (one click, green flash)
+ *   2. Logged in + no balance  → Pledge buttons (records intent, prompts to fund)
+ *   3. Not logged in           → Pledge buttons → opens login popup on click
  */
 (function () {
   'use strict';
 
   const API = (document.currentScript && document.currentScript.dataset.api)
     || 'https://demos.linkedtrust.us/simpletip/api';
+  const BASE_URL = API.replace('/api', '');
 
   const BRAND = '#3f2534';
   const ACCENT = '#00b2e5';
@@ -18,6 +21,7 @@
   const GREEN_DARK = '#16a34a';
   const PINK = '#ff6872';
   const GOLD = '#f59e0b';
+  const BLUE_SKY = '#0085ff';
 
   function esc(s) {
     const d = document.createElement('div');
@@ -87,12 +91,12 @@
           }
           .tip-bar.success { background: ${GREEN_DARK}; }
           .tip-bar.needs-funds { background: ${GOLD}; }
+          .tip-bar.pledged { background: ${BLUE_SKY}; }
 
           .avatar {
             width: 36px; height: 36px; border-radius: 50%; object-fit: cover;
             border: 2px solid ${ACCENT}; flex-shrink: 0;
           }
-          .avatar.subject-avatar { border-color: ${PINK}; }
 
           .info { flex: 1; min-width: 0; }
           .info .who {
@@ -106,11 +110,13 @@
             background: ${ACCENT}; color: #fff; border: none; border-radius: 6px;
             padding: 6px 12px; font-size: 0.82rem; font-weight: 600; cursor: pointer;
             transition: all 0.15s;
-            position: relative;
           }
           .amt:hover { background: #0090c0; transform: scale(1.05); }
           .amt:active { transform: scale(0.95); }
           .amt:disabled { opacity: 0.5; cursor: default; transform: none; }
+          /* Pledge style — slightly different look */
+          .amt.pledge-mode { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); }
+          .amt.pledge-mode:hover { background: rgba(255,255,255,0.3); }
 
           .success-msg {
             display: none; font-size: 0.82rem; font-weight: 600;
@@ -156,8 +162,8 @@
         <div class="tip-bar" id="bar">
           ${authorImg ? `<img class="avatar" src="${esc(authorImg)}" alt="${esc(authorName)}">` : ''}
           <div class="info">
-            <div class="who">Tip ${esc(authorName)}${isSplit ? ' + ' + esc(subjectName) : ''}</div>
-            <div class="sub">powered by SimpleTip</div>
+            <div class="who" id="whoLabel">Tip ${esc(authorName)}${isSplit ? ' + ' + esc(subjectName) : ''}</div>
+            <div class="sub" id="subLabel">powered by SimpleTip</div>
           </div>
           <div class="bal-badge" id="balBadge" title="Your wallet balance"></div>
           <div class="amounts" id="amounts">
@@ -176,7 +182,7 @@
           <span class="split-label">${esc(subjectName)}</span>
         </div>` : ''}
         <div class="wallet-hint" id="walletHint">
-          <a id="addFundsLink">Add funds</a> to your wallet to tip with one click.
+          <span id="hintText"><a id="addFundsLink">Add funds</a> to your wallet to tip with one click.</span>
         </div>
         <div class="footer">
           <a href="https://linkedtrust.us" target="_blank">SimpleTip by LinkedTrust</a>
@@ -188,37 +194,65 @@
       const successMsg = shadow.getElementById('successMsg');
       const successText = shadow.getElementById('successText');
       const walletHint = shadow.getElementById('walletHint');
+      const hintText = shadow.getElementById('hintText');
+      const whoLabel = shadow.getElementById('whoLabel');
+      const subLabel = shadow.getElementById('subLabel');
       const slider = shadow.getElementById('slider');
       const authorPct = shadow.getElementById('authorPct');
       const subjectPct = shadow.getElementById('subjectPct');
       const addFundsLink = shadow.getElementById('addFundsLink');
       const balBadge = shadow.getElementById('balBadge');
+      const allBtns = shadow.querySelectorAll('.amt');
 
-      // Show balance badge if wallet exists
-      const _updateBal = () => {
+      // ── State management ──────────────────────────────────
+
+      const _updateState = () => {
         const w = getWallet();
-        if (w && w.token) {
+        const hasFunds = w && w.token && w.balance > 0;
+        const isLoggedIn = w && w.token;
+
+        // Balance badge
+        if (isLoggedIn) {
           balBadge.textContent = `$${(w.balance || 0).toFixed(2)}`;
           balBadge.classList.add('show');
         } else {
           balBadge.classList.remove('show');
         }
+
+        // Button mode
+        if (hasFunds) {
+          // State 1: Tip mode
+          whoLabel.textContent = `Tip ${authorName}${isSplit ? ' + ' + subjectName : ''}`;
+          subLabel.textContent = 'powered by SimpleTip';
+          allBtns.forEach(b => b.classList.remove('pledge-mode'));
+        } else if (isLoggedIn) {
+          // State 2: Pledge mode (logged in, no balance)
+          whoLabel.textContent = `Pledge to ${authorName}${isSplit ? ' + ' + subjectName : ''}`;
+          subLabel.textContent = 'fund your wallet later to send';
+          allBtns.forEach(b => b.classList.add('pledge-mode'));
+        } else {
+          // State 3: Not logged in — pledge mode, login on click
+          whoLabel.textContent = `Pledge to ${authorName}${isSplit ? ' + ' + subjectName : ''}`;
+          subLabel.textContent = 'sign in to track your pledges';
+          allBtns.forEach(b => b.classList.add('pledge-mode'));
+        }
       };
-      _updateBal();
+      _updateState();
 
       // Clicking balance opens fund page
-      balBadge.addEventListener('click', () => this._openFundingPopup(author));
+      balBadge.addEventListener('click', () => this._openFundingPopup());
 
-      // Listen for wallet updates from fund popup
+      // Listen for auth/wallet updates from popups
       window.addEventListener('message', (event) => {
-        if (event.data && event.data.type === 'simpletip-wallet-updated') {
+        if (event.data && (event.data.type === 'simpletip-wallet-updated' || event.data.type === 'simpletip-auth')) {
           saveWallet(event.data.wallet);
-          _updateBal();
+          _updateState();
         }
       });
 
-      // Also update after tips
-      this.addEventListener('tip', () => setTimeout(_updateBal, 100));
+      // Update after tips
+      this.addEventListener('tip', () => setTimeout(_updateState, 100));
+      this.addEventListener('pledge', () => setTimeout(_updateState, 100));
 
       // Slider
       if (slider) {
@@ -229,119 +263,172 @@
         });
       }
 
-      // Add funds link → open auth/fund popup
+      // Add funds link
       if (addFundsLink) {
         addFundsLink.addEventListener('click', (e) => {
           e.preventDefault();
-          this._openFundingPopup(author);
+          this._openFundingPopup();
         });
       }
 
-      // Tip buttons
-      shadow.querySelectorAll('.amt').forEach(btn => {
-        btn.addEventListener('click', () => this._handleTip(btn, {
-          author, authorName, subject, subjectName,
-          amount: parseFloat(btn.dataset.amount),
-          splitPct: slider ? parseInt(slider.value) : 100,
-          bar, amountsDiv, successMsg, successText, walletHint,
-        }));
+      // Amount buttons — behavior depends on state
+      allBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const amount = parseFloat(btn.dataset.amount);
+          const splitPct = slider ? parseInt(slider.value) : 100;
+          const wallet = getWallet();
+
+          if (wallet && wallet.token && wallet.balance >= amount) {
+            // State 1: Tip from balance
+            this._handleTip(btn, {
+              author, authorName, subject, subjectName, amount, splitPct,
+              bar, amountsDiv, successMsg, successText, walletHint, hintText, allBtns,
+              _updateState,
+            });
+          } else if (wallet && wallet.token) {
+            // State 2: Pledge (logged in, insufficient funds)
+            this._handlePledge(btn, {
+              author, authorName, subject, subjectName, amount, splitPct,
+              bar, amountsDiv, successMsg, successText, walletHint, hintText, allBtns,
+              _updateState,
+            });
+          } else {
+            // State 3: Not logged in — open login, then pledge
+            this._handleLoginThenPledge(btn, {
+              author, authorName, subject, subjectName, amount, splitPct,
+              bar, amountsDiv, successMsg, successText, walletHint, hintText, allBtns,
+              _updateState,
+            });
+          }
+        });
       });
     }
 
-    async _handleTip(btn, ctx) {
-      const { author, authorName, subject, subjectName, amount, splitPct,
-              bar, amountsDiv, successMsg, successText, walletHint } = ctx;
+    // ── State 1: Tip from wallet balance ──────────────────
 
-      // Disable all buttons immediately
-      const allBtns = bar.querySelectorAll('.amt');
+    async _handleTip(btn, ctx) {
+      const { author, subject, amount, splitPct,
+              bar, amountsDiv, successMsg, successText, walletHint, hintText, allBtns,
+              _updateState } = ctx;
+
       allBtns.forEach(b => b.disabled = true);
       btn.textContent = '...';
 
-      const wallet = getWallet();
-
       try {
-        if (wallet && wallet.token) {
-          // Has wallet — try one-click tip from balance
-          const result = await apiPost('/tip', {
-            author,
-            subject: subject || undefined,
-            amount,
-            splitPct: subject ? splitPct : undefined,
-          });
+        const result = await apiPost('/tip', {
+          author,
+          subject: subject || undefined,
+          amount,
+          splitPct: subject ? splitPct : undefined,
+        });
 
-          if (result.success) {
-            // Update local balance
-            wallet.balance = result.balance;
-            saveWallet(wallet);
-            this._showSuccess(bar, amountsDiv, successMsg, successText, walletHint,
-              `$${amount} sent!`, allBtns, btn, amount);
-            return;
-          }
-
-          if (result.error === 'insufficient_funds') {
-            // Wallet empty — show hint, don't disrupt
-            walletHint.classList.add('show');
-            bar.classList.add('needs-funds');
-            allBtns.forEach(b => b.disabled = false);
-            btn.textContent = `$${amount}`;
-            setTimeout(() => {
-              bar.classList.remove('needs-funds');
-              walletHint.classList.remove('show');
-            }, 5000);
-            return;
-          }
+        if (result.success) {
+          const wallet = getWallet();
+          if (wallet) { wallet.balance = result.balance; saveWallet(wallet); }
+          this._showFlash(bar, amountsDiv, successMsg, successText, `$${amount} sent!`, 'success', allBtns, btn, amount, _updateState);
+          this.dispatchEvent(new CustomEvent('tip', { bubbles: true, detail: { amount } }));
+          return;
         }
 
-        // No wallet — create one automatically, then open funding popup
-        const newWallet = await apiPost('/wallet/create', {});
-        if (newWallet.token) {
-          saveWallet(newWallet);
-          // Open fund popup so they can add money
-          this._openFundingPopup(author);
-          walletHint.classList.add('show');
-          bar.classList.add('needs-funds');
-          allBtns.forEach(b => b.disabled = false);
-          btn.textContent = `$${amount}`;
-          setTimeout(() => {
-            bar.classList.remove('needs-funds');
-          }, 3000);
-        } else {
-          throw new Error(newWallet.error || 'wallet creation failed');
+        if (result.error === 'insufficient_funds') {
+          // Switch to pledge
+          this._handlePledge(btn, ctx);
+          return;
         }
       } catch (err) {
-        // Error — reset buttons
-        allBtns.forEach(b => b.disabled = false);
-        btn.textContent = `$${amount}`;
         console.error('SimpleTip error:', err);
       }
+      allBtns.forEach(b => b.disabled = false);
+      btn.textContent = `$${amount}`;
     }
 
-    _showSuccess(bar, amountsDiv, successMsg, successText, walletHint, text, allBtns, btn, amount) {
-      // Flash green — the key UX moment
-      bar.classList.add('success');
+    // ── State 2: Pledge (logged in, no/insufficient balance) ──
+
+    async _handlePledge(btn, ctx) {
+      const { author, subject, amount, splitPct,
+              bar, amountsDiv, successMsg, successText, walletHint, hintText, allBtns,
+              _updateState } = ctx;
+
+      allBtns.forEach(b => b.disabled = true);
+      btn.textContent = '...';
+
+      try {
+        const result = await apiPost('/pledge', {
+          author,
+          subject: subject || undefined,
+          amount,
+          splitPct: subject ? splitPct : undefined,
+        });
+
+        if (result.success) {
+          const msg = result.pendingTotal > amount
+            ? `Pledged $${amount}! ($${result.pendingTotal.toFixed(2)} total)`
+            : `Pledged $${amount}!`;
+          this._showFlash(bar, amountsDiv, successMsg, successText, msg, 'pledged', allBtns, btn, amount, _updateState);
+
+          // Show fund prompt if pledges are piling up
+          if (result.pendingTotal >= 5) {
+            setTimeout(() => {
+              hintText.innerHTML = `You've pledged $${result.pendingTotal.toFixed(2)}. <a id="fundNowLink">Fund your wallet</a> to send it!`;
+              walletHint.classList.add('show');
+              const fundLink = hintText.querySelector('#fundNowLink');
+              if (fundLink) fundLink.addEventListener('click', (e) => { e.preventDefault(); this._openFundingPopup(); });
+            }, 2600);
+          }
+
+          this.dispatchEvent(new CustomEvent('pledge', { bubbles: true, detail: { amount, pendingTotal: result.pendingTotal } }));
+          return;
+        }
+      } catch (err) {
+        console.error('SimpleTip pledge error:', err);
+      }
+      allBtns.forEach(b => b.disabled = false);
+      btn.textContent = `$${amount}`;
+    }
+
+    // ── State 3: Not logged in — login popup, then pledge ──
+
+    _handleLoginThenPledge(btn, ctx) {
+      const { amount, allBtns, _updateState } = ctx;
+
+      // Open login popup
+      const popup = window.open(`${BASE_URL}/login.html`, 'simpletip-login',
+        'width=400,height=500,scrollbars=yes');
+
+      // Listen for auth completion
+      const msgHandler = (event) => {
+        if (event.data && event.data.type === 'simpletip-auth') {
+          window.removeEventListener('message', msgHandler);
+          saveWallet(event.data.wallet);
+          _updateState();
+          if (popup && !popup.closed) popup.close();
+          // Now create the pledge
+          this._handlePledge(btn, ctx);
+        }
+      };
+      window.addEventListener('message', msgHandler);
+    }
+
+    // ── Flash animation (tip or pledge) ─────────────────────
+
+    _showFlash(bar, amountsDiv, successMsg, successText, text, cssClass, allBtns, btn, amount, _updateState) {
+      bar.classList.add(cssClass);
       amountsDiv.classList.add('hide');
-      walletHint.classList.remove('show');
       successText.textContent = text;
       successMsg.classList.add('show');
 
-      // Emit event for host page
-      this.dispatchEvent(new CustomEvent('tip', {
-        bubbles: true,
-        detail: { amount },
-      }));
-
-      // Reset after 2.5s
       setTimeout(() => {
-        bar.classList.remove('success');
+        bar.classList.remove(cssClass);
         amountsDiv.classList.remove('hide');
         successMsg.classList.remove('show');
         allBtns.forEach(b => b.disabled = false);
         btn.textContent = `$${amount}`;
+        _updateState();
       }, 2500);
     }
 
-    _openFundingPopup(author) {
-      const w = window.open(`${API.replace('/api', '')}/fund.html`, 'simpletip-fund',
+    _openFundingPopup() {
+      const w = window.open(`${BASE_URL}/fund.html`, 'simpletip-fund',
         'width=420,height=550,scrollbars=yes');
 
       const msgHandler = (event) => {
@@ -451,7 +538,7 @@
 
           if (resp.slug) {
             embedCode.textContent =
-              `<script src="${API.replace('/api', '')}/simpletip.js"><\/script>\n<simple-tip author="${resp.slug}" author-name="${esc(name)}"></simple-tip>`;
+              `<script src="${BASE_URL}/simpletip.js"><\/script>\n<simple-tip author="${resp.slug}" author-name="${esc(name)}"></simple-tip>`;
             formSection.style.display = 'none';
             result.classList.add('show');
           }

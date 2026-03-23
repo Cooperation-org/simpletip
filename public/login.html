@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In — SimpleTip</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 16px; }
+  .card { background: #fff; border-radius: 14px; padding: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); max-width: 380px; width: 100%; }
+  h2 { font-size: 1.15rem; color: #3f2534; margin-bottom: 4px; }
+  .sub { font-size: 0.82rem; color: #888; margin-bottom: 20px; }
+
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; padding: 12px 16px; border-radius: 10px; font-size: 0.9rem;
+    font-weight: 600; cursor: pointer; border: 1px solid #e5e7eb;
+    transition: box-shadow 0.15s, border-color 0.15s; margin-bottom: 10px;
+  }
+  .btn:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .btn svg, .btn img { width: 20px; height: 20px; flex-shrink: 0; }
+
+  .btn-bluesky { background: #fff; color: #0085ff; border-color: #0085ff; }
+  .btn-bluesky:hover { background: #f0f7ff; }
+
+  .btn-email { background: #fff; color: #3f2534; }
+
+  .divider { text-align: center; font-size: 0.75rem; color: #999; margin: 16px 0; position: relative; }
+  .divider::before, .divider::after {
+    content: ''; position: absolute; top: 50%; width: 38%; height: 1px; background: #e5e7eb;
+  }
+  .divider::before { left: 0; }
+  .divider::after { right: 0; }
+
+  .handle-form { display: none; }
+  .handle-form.show { display: block; }
+  .handle-form input {
+    width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px;
+    font-size: 0.88rem; margin-bottom: 8px;
+  }
+  .handle-form input:focus { outline: none; border-color: #0085ff; }
+  .handle-form button {
+    width: 100%; padding: 10px; background: #0085ff; color: #fff; border: none;
+    border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  }
+  .handle-form button:hover { background: #006dd6; }
+  .handle-form button:disabled { opacity: 0.5; cursor: default; }
+
+  .email-form { display: none; }
+  .email-form.show { display: block; }
+  .email-form input {
+    width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px;
+    font-size: 0.88rem; margin-bottom: 8px;
+  }
+  .email-form input:focus { outline: none; border-color: #00b2e5; }
+  .email-form button {
+    width: 100%; padding: 10px; background: #00b2e5; color: #fff; border: none;
+    border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  }
+  .email-form button:hover { background: #0090c0; }
+  .email-form button:disabled { opacity: 0.5; cursor: default; }
+
+  .status { text-align: center; font-size: 0.82rem; margin-top: 12px; min-height: 1.2em; }
+  .status.error { color: #ef4444; }
+  .status.info { color: #888; }
+
+  .back-link { display: block; text-align: center; font-size: 0.75rem; color: #999; margin-top: 12px; cursor: pointer; }
+  .back-link:hover { color: #666; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>Sign in to SimpleTip</h2>
+  <p class="sub">Your wallet works across every site with SimpleTip.</p>
+
+  <div id="mainButtons">
+    <button class="btn btn-bluesky" id="bskyBtn">
+      <svg viewBox="0 0 600 530" fill="#0085ff"><path d="M135.72 44.03C202.216 93.951 273.74 195.17 300 249.49c26.262-54.316 97.782-155.54 164.28-205.46C512.26 8.009 590-19.862 590 68.825c0 17.712-10.155 148.79-16.111 170.07-20.703 73.984-96.144 92.854-163.25 81.433 117.3 19.964 147.14 86.092 82.697 152.22-122.39 125.59-175.91-31.51-189.63-71.766-2.514-7.38-3.69-10.832-3.708-7.896-.017-2.935-1.193.516-3.707 7.896-13.714 40.258-67.233 197.36-189.63 71.766-64.444-66.128-34.605-132.256 82.697-152.22-67.108 11.421-142.549-7.449-163.25-81.433C20.155 217.613 10 86.536 10 68.824c0-88.687 77.742-60.816 125.72-24.795z"/></svg>
+      Sign in with Bluesky
+    </button>
+
+    <button class="btn btn-email" id="emailBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#3f2534" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4L12 13L2 4"/></svg>
+      Continue with email
+    </button>
+  </div>
+
+  <!-- Bluesky handle input -->
+  <div class="handle-form" id="handleForm">
+    <input type="text" id="handleInput" placeholder="yourname.bsky.social" autocomplete="off">
+    <button id="handleSubmit">Sign in with Bluesky</button>
+    <span class="back-link" id="handleBack">Back</span>
+  </div>
+
+  <!-- Email input -->
+  <div class="email-form" id="emailForm">
+    <input type="email" id="emailInput" placeholder="you@example.com">
+    <input type="text" id="nameInput" placeholder="Your name (optional)">
+    <button id="emailSubmit">Continue</button>
+    <span class="back-link" id="emailBack">Back</span>
+  </div>
+
+  <div class="status" id="status"></div>
+</div>
+
+<script>
+  const API = '/simpletip/api';
+  const params = new URLSearchParams(window.location.search);
+  const errorMsg = params.get('error');
+
+  if (errorMsg) {
+    document.getElementById('status').textContent = errorMsg;
+    document.getElementById('status').className = 'status error';
+  }
+
+  // Show Bluesky handle form
+  document.getElementById('bskyBtn').addEventListener('click', () => {
+    document.getElementById('mainButtons').style.display = 'none';
+    document.getElementById('handleForm').classList.add('show');
+    document.getElementById('handleInput').focus();
+  });
+
+  // Show email form
+  document.getElementById('emailBtn').addEventListener('click', () => {
+    document.getElementById('mainButtons').style.display = 'none';
+    document.getElementById('emailForm').classList.add('show');
+    document.getElementById('emailInput').focus();
+  });
+
+  // Back buttons
+  document.getElementById('handleBack').addEventListener('click', () => {
+    document.getElementById('handleForm').classList.remove('show');
+    document.getElementById('mainButtons').style.display = '';
+  });
+  document.getElementById('emailBack').addEventListener('click', () => {
+    document.getElementById('emailForm').classList.remove('show');
+    document.getElementById('mainButtons').style.display = '';
+  });
+
+  // Bluesky OAuth submit
+  document.getElementById('handleSubmit').addEventListener('click', async () => {
+    const handle = document.getElementById('handleInput').value.trim();
+    if (!handle) return;
+
+    const btn = document.getElementById('handleSubmit');
+    const status = document.getElementById('status');
+    btn.disabled = true;
+    btn.textContent = 'Connecting...';
+    status.textContent = '';
+
+    try {
+      const resp = await fetch(`${API}/auth/bluesky?handle=${encodeURIComponent(handle)}`);
+      const data = await resp.json();
+
+      if (data.url) {
+        // Redirect to Bluesky authorization page
+        window.location.href = data.url;
+      } else {
+        status.textContent = data.error || 'Failed to connect';
+        status.className = 'status error';
+        btn.disabled = false;
+        btn.textContent = 'Sign in with Bluesky';
+      }
+    } catch (err) {
+      status.textContent = 'Connection error';
+      status.className = 'status error';
+      btn.disabled = false;
+      btn.textContent = 'Sign in with Bluesky';
+    }
+  });
+
+  // Enter key for handle
+  document.getElementById('handleInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('handleSubmit').click();
+  });
+
+  // Email submit — creates/recovers wallet by email
+  document.getElementById('emailSubmit').addEventListener('click', async () => {
+    const email = document.getElementById('emailInput').value.trim();
+    if (!email) return;
+    const name = document.getElementById('nameInput').value.trim();
+
+    const btn = document.getElementById('emailSubmit');
+    const status = document.getElementById('status');
+    btn.disabled = true;
+    btn.textContent = 'Signing in...';
+
+    try {
+      // Try to recover existing wallet first
+      let resp = await fetch(`${API}/wallet/recover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      let data = await resp.json();
+
+      if (!data.token) {
+        // No existing wallet — create one with this email
+        resp = await fetch(`${API}/wallet/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name }),
+        });
+        data = await resp.json();
+      }
+
+      if (data.token) {
+        const wallet = {
+          token: data.token,
+          balance: data.balance || 0,
+          name: data.name || name || '',
+          email: data.email || email,
+        };
+        // Save to our domain's localStorage
+        localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
+        // Notify opener
+        if (window.opener) {
+          window.opener.postMessage({ type: 'simpletip-auth', wallet }, '*');
+        }
+        window.close();
+      } else {
+        status.textContent = 'Could not create wallet';
+        status.className = 'status error';
+      }
+    } catch (err) {
+      status.textContent = 'Connection error';
+      status.className = 'status error';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Continue';
+  });
+
+  // Enter key for email
+  document.getElementById('emailInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('emailSubmit').click();
+  });
+</script>
+</body>
+</html>

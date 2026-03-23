@@ -15,6 +15,10 @@ const crypto = require('crypto');
 const path = require('path');
 const config = require('./config');
 
+// ATProto OAuth (conditional — needs HTTPS domain)
+let oauthClient = null;
+let NodeOAuthClient, SimpleStoreMemory;
+
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
 
@@ -88,9 +92,30 @@ db.exec(`
     FOREIGN KEY (wallet_id) REFERENCES wallets(id)
   );
 
+  CREATE TABLE IF NOT EXISTS pledges (
+    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+    wallet_id TEXT NOT NULL,
+    author_slug TEXT NOT NULL,
+    subject_slug TEXT,
+    amount REAL NOT NULL,
+    author_amount REAL NOT NULL,
+    subject_amount REAL DEFAULT 0,
+    status TEXT DEFAULT 'pending',
+    fulfilled_tip_id TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (wallet_id) REFERENCES wallets(id),
+    FOREIGN KEY (author_slug) REFERENCES authors(slug)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_tips_author ON tips(author_slug);
   CREATE INDEX IF NOT EXISTS idx_tips_wallet ON tips(wallet_id);
+  CREATE INDEX IF NOT EXISTS idx_pledges_wallet ON pledges(wallet_id);
+  CREATE INDEX IF NOT EXISTS idx_pledges_author ON pledges(author_slug);
 `);
+
+// Add DID and handle columns to wallets if not present
+try { db.exec('ALTER TABLE wallets ADD COLUMN did TEXT'); } catch (e) {}
+try { db.exec('ALTER TABLE wallets ADD COLUMN handle TEXT'); } catch (e) {}
 
 // ── Auth middleware ───────────────────────────────────────────
 
@@ -562,6 +587,288 @@ app.get('/api/stats', (req, res) => {
   res.json({ totalTips: totalTips.n, totalAmount: totalTips.total || 0, topAuthors });
 });
 
+// ── Pledges ─────────────────────────────────────────────────
+
+// Create a pledge (no balance needed — just intent)
+app.post('/api/pledge', (req, res) => {
+  if (!req.wallet) return res.status(401).json({ error: 'not authenticated' });
+
+  const { author, subject, amount, splitPct } = req.body;
+  if (!author || !amount || amount <= 0) return res.status(400).json({ error: 'author and amount required' });
+
+  const pct = subject && splitPct != null ? splitPct : 100;
+  const authorAmount = Math.round(amount * pct) / 100;
+  const subjectAmount = subject ? Math.round(amount * (100 - pct)) / 100 : 0;
+
+  const pledgeId = crypto.randomBytes(8).toString('hex');
+  db.prepare("INSERT INTO pledges (id, wallet_id, author_slug, subject_slug, amount, author_amount, subject_amount) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(pledgeId, req.wallet.id, author, subject || null, amount, authorAmount, subjectAmount);
+
+  // Return total pending pledges for this wallet
+  const pending = db.prepare("SELECT count(*) as n, sum(amount) as total FROM pledges WHERE wallet_id = ? AND status = 'pending'")
+    .get(req.wallet.id);
+
+  res.json({ success: true, pledgeId, pendingCount: pending.n, pendingTotal: pending.total || 0 });
+});
+
+// Get pending pledges for the current wallet
+app.get('/api/pledges', (req, res) => {
+  if (!req.wallet) return res.status(401).json({ error: 'not authenticated' });
+  const pledges = db.prepare(`
+    SELECT p.*, a.name as author_name
+    FROM pledges p LEFT JOIN authors a ON p.author_slug = a.slug
+    WHERE p.wallet_id = ? AND p.status = 'pending' ORDER BY p.created_at DESC
+  `).all(req.wallet.id);
+  const total = pledges.reduce((s, p) => s + p.amount, 0);
+  res.json({ pledges, total });
+});
+
+// Fulfill all pending pledges (called after wallet is funded)
+app.post('/api/pledges/fulfill', (req, res) => {
+  if (!req.wallet) return res.status(401).json({ error: 'not authenticated' });
+
+  const pending = db.prepare("SELECT * FROM pledges WHERE wallet_id = ? AND status = 'pending' ORDER BY created_at ASC")
+    .all(req.wallet.id);
+
+  if (pending.length === 0) return res.json({ fulfilled: 0 });
+
+  const totalNeeded = pending.reduce((s, p) => s + p.amount, 0);
+  if (req.wallet.balance < totalNeeded) {
+    return res.status(402).json({
+      error: 'insufficient_funds',
+      balance: req.wallet.balance,
+      needed: totalNeeded,
+      pledgeCount: pending.length,
+    });
+  }
+
+  let fulfilled = 0;
+  db.transaction(() => {
+    for (const p of pending) {
+      if (req.wallet.balance < p.amount) break; // stop if can't cover next pledge
+
+      const tipId = crypto.randomBytes(8).toString('hex');
+      db.prepare("INSERT INTO tips (id, wallet_id, author_slug, subject_slug, amount, author_amount, subject_amount, source) VALUES (?, ?, ?, ?, ?, ?, ?, 'pledge')")
+        .run(tipId, req.wallet.id, p.author_slug, p.subject_slug, p.amount, p.author_amount, p.subject_amount);
+      db.prepare('UPDATE wallets SET balance = balance - ?, total_tipped = total_tipped + ? WHERE id = ?')
+        .run(p.amount, p.amount, req.wallet.id);
+      db.prepare('UPDATE authors SET total_received = total_received + ? WHERE slug = ?')
+        .run(p.author_amount, p.author_slug);
+      if (p.subject_slug) {
+        db.prepare('UPDATE authors SET total_received = total_received + ? WHERE slug = ?')
+          .run(p.subject_amount, p.subject_slug);
+      }
+      db.prepare("UPDATE pledges SET status = 'fulfilled', fulfilled_tip_id = ? WHERE id = ?")
+        .run(tipId, p.id);
+      fulfilled++;
+      // Update in-memory balance for loop
+      req.wallet.balance -= p.amount;
+    }
+  })();
+
+  const updated = db.prepare('SELECT balance FROM wallets WHERE id = ?').get(req.wallet.id);
+  res.json({ fulfilled, balance: updated.balance });
+});
+
+// ── Bluesky OAuth ───────────────────────────────────────────
+
+// Serve client-metadata.json for ATProto OAuth
+app.get('/client-metadata.json', (req, res) => {
+  const nodeUrl = config.nodeUrl;
+  res.json({
+    client_id: `${nodeUrl}/client-metadata.json`,
+    client_name: config.nodeName || 'SimpleTip',
+    client_uri: nodeUrl,
+    redirect_uris: [`${nodeUrl}/api/auth/bluesky/callback`],
+    scope: 'atproto transition:generic',
+    grant_types: ['authorization_code', 'refresh_token'],
+    response_types: ['code'],
+    token_endpoint_auth_method: 'none',
+    application_type: 'web',
+    dpop_bound_access_tokens: true,
+  });
+});
+
+// Initialize ATProto OAuth client (async, called at startup)
+async function setupBlueskyOAuth() {
+  try {
+    const nodeUrl = config.nodeUrl;
+    const isHttps = nodeUrl.startsWith('https://') && !nodeUrl.includes('localhost');
+    if (!isHttps) {
+      console.log('Bluesky OAuth: skipped (requires HTTPS domain)');
+      return;
+    }
+
+    const { NodeOAuthClient: NOC } = await import('@atproto/oauth-client-node');
+    const { SimpleStoreMemory: SSM } = await import('@atproto-labs/simple-store-memory');
+    NodeOAuthClient = NOC;
+    SimpleStoreMemory = SSM;
+
+    const stateStore = new SimpleStoreMemory({ max: 100, ttl: 10 * 60 * 1000 });
+    const sessionStore = new SimpleStoreMemory({ max: 100 });
+
+    oauthClient = new NodeOAuthClient({
+      clientMetadata: {
+        client_id: `${nodeUrl}/client-metadata.json`,
+        client_name: config.nodeName || 'SimpleTip',
+        client_uri: nodeUrl,
+        redirect_uris: [`${nodeUrl}/api/auth/bluesky/callback`],
+        scope: 'atproto transition:generic',
+        grant_types: ['authorization_code', 'refresh_token'],
+        response_types: ['code'],
+        token_endpoint_auth_method: 'none',
+        application_type: 'web',
+        dpop_bound_access_tokens: true,
+      },
+      stateStore,
+      sessionStore,
+    });
+
+    console.log('Bluesky OAuth configured');
+  } catch (err) {
+    console.log('Bluesky OAuth setup failed:', err.message);
+  }
+}
+
+// Start Bluesky OAuth flow
+app.get('/api/auth/bluesky', async (req, res) => {
+  const { handle } = req.query;
+  if (!handle) return res.status(400).json({ error: 'handle required' });
+
+  if (!oauthClient) {
+    return res.status(503).json({ error: 'Bluesky OAuth not available (needs HTTPS domain)' });
+  }
+
+  try {
+    const url = await oauthClient.authorize(handle, {
+      scope: 'atproto transition:generic',
+    });
+    res.json({ url: url.toString() });
+  } catch (err) {
+    res.status(500).json({ error: 'OAuth failed', detail: err.message });
+  }
+});
+
+// Bluesky OAuth callback
+app.get('/api/auth/bluesky/callback', async (req, res) => {
+  if (!oauthClient) return res.status(503).send('OAuth not available');
+
+  try {
+    const params = new URLSearchParams(req.url.split('?')[1] || '');
+    const { session } = await oauthClient.callback(params);
+    const did = session.did;
+
+    // Try to get profile for display name and handle
+    let handle = did;
+    let displayName = '';
+    try {
+      const agent = await oauthClient.restore(did);
+      // Use the ATProto API to get profile
+      const { BskyAgent } = await import('@atproto/api');
+      const bsky = new BskyAgent({ service: 'https://public.api.bsky.app' });
+      const profile = await bsky.getProfile({ actor: did });
+      handle = profile.data.handle;
+      displayName = profile.data.displayName || handle;
+    } catch (e) {
+      console.log('Could not fetch profile:', e.message);
+    }
+
+    // Find or create wallet for this DID
+    let wallet = db.prepare('SELECT * FROM wallets WHERE did = ?').get(did);
+    if (!wallet) {
+      // Check if there's an anonymous wallet from this browser session (via state param)
+      // For now, just create a new wallet
+      const id = crypto.randomBytes(8).toString('hex');
+      const token = crypto.randomBytes(32).toString('hex');
+      const email = `${handle}@bsky.social`;
+      db.prepare('INSERT INTO wallets (id, email, name, token, did, handle) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(id, email, displayName, token, did, handle);
+      wallet = db.prepare('SELECT * FROM wallets WHERE id = ?').get(id);
+    }
+
+    // Redirect to login-success page with token (popup will postMessage to opener)
+    const successUrl = `${config.nodeUrl}/login-success.html?token=${wallet.token}&name=${encodeURIComponent(wallet.name || handle)}&handle=${encodeURIComponent(handle)}&did=${encodeURIComponent(did)}&balance=${wallet.balance}`;
+    res.redirect(successUrl);
+  } catch (err) {
+    console.error('Bluesky callback error:', err);
+    res.redirect(`${config.nodeUrl}/login.html?error=${encodeURIComponent(err.message)}`);
+  }
+});
+
+// Link Bluesky DID to existing wallet
+app.post('/api/wallet/link-bluesky', (req, res) => {
+  if (!req.wallet) return res.status(401).json({ error: 'not authenticated' });
+  const { did, handle } = req.body;
+  if (!did) return res.status(400).json({ error: 'did required' });
+
+  const other = db.prepare('SELECT id FROM wallets WHERE did = ? AND id != ?').get(did, req.wallet.id);
+  if (other) {
+    return res.status(409).json({ error: 'DID already linked to another wallet' });
+  }
+
+  db.prepare('UPDATE wallets SET did = ?, handle = ? WHERE id = ?')
+    .run(did, handle || '', req.wallet.id);
+  res.json({ success: true, did, handle });
+});
+
+// Auth status check (for widget to know if user is logged in)
+app.get('/api/auth/status', (req, res) => {
+  if (!req.wallet) return res.json({ authenticated: false });
+  res.json({
+    authenticated: true,
+    balance: req.wallet.balance,
+    name: req.wallet.name,
+    handle: req.wallet.handle || null,
+    did: req.wallet.did || null,
+    hasFunds: req.wallet.balance > 0,
+  });
+});
+
+// ── Author dashboard ────────────────────────────────────────
+
+app.get('/api/author/:slug/dashboard', (req, res) => {
+  const author = db.prepare('SELECT * FROM authors WHERE slug = ?').get(req.params.slug);
+  if (!author) return res.status(404).json({ error: 'author not found' });
+
+  const tips = db.prepare(`
+    SELECT t.amount, t.author_amount, t.subject_amount, t.source, t.created_at,
+           w.name as tipper_name, w.handle as tipper_handle
+    FROM tips t LEFT JOIN wallets w ON t.wallet_id = w.id
+    WHERE t.author_slug = ? AND t.status = 'completed'
+    ORDER BY t.created_at DESC LIMIT 100
+  `).all(req.params.slug);
+
+  const pendingPledges = db.prepare(`
+    SELECT p.amount, p.author_amount, p.created_at,
+           w.name as pledger_name, w.handle as pledger_handle
+    FROM pledges p LEFT JOIN wallets w ON p.wallet_id = w.id
+    WHERE p.author_slug = ? AND p.status = 'pending'
+    ORDER BY p.created_at DESC
+  `).all(req.params.slug);
+
+  const stats = db.prepare(`
+    SELECT count(*) as tip_count, sum(author_amount) as total_received
+    FROM tips WHERE author_slug = ? AND status = 'completed'
+  `).get(req.params.slug);
+
+  const pledgeStats = db.prepare(`
+    SELECT count(*) as pledge_count, sum(amount) as total_pledged
+    FROM pledges WHERE author_slug = ? AND status = 'pending'
+  `).get(req.params.slug);
+
+  res.json({
+    author: { slug: author.slug, name: author.name, created_at: author.created_at },
+    tips,
+    pendingPledges,
+    stats: {
+      tipCount: stats.tip_count,
+      totalReceived: stats.total_received || 0,
+      pledgeCount: pledgeStats.pledge_count,
+      totalPledged: pledgeStats.total_pledged || 0,
+    },
+  });
+});
+
 // ── Admin: confirm manual funding ───────────────────────────
 
 app.post('/api/admin/confirm-funding', (req, res) => {
@@ -581,9 +888,10 @@ app.post('/api/admin/confirm-funding', (req, res) => {
 
 // ── Start ────────────────────────────────────────────────────
 
-app.listen(PORT, '127.0.0.1', () => {
+app.listen(PORT, '127.0.0.1', async () => {
   console.log(`SimpleTip backend on http://127.0.0.1:${PORT}`);
   console.log(`Mode: ${config.demoMode ? 'DEMO' : 'LIVE'}`);
   const enabled = Object.entries(config.payments).filter(([, v]) => v.enabled).map(([k]) => k);
   console.log(`Payment methods: ${enabled.length ? enabled.join(', ') : 'none (demo mode — all simulated)'}`);
+  await setupBlueskyOAuth();
 });
