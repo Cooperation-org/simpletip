@@ -13,20 +13,11 @@
   .section { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
   .section h2 { font-size: 1rem; color: #3f2534; margin-bottom: 10px; }
   .section p { font-size: 0.88rem; color: #555; line-height: 1.5; margin-bottom: 12px; }
-  .nav { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
-  .nav a { background: #3f2534; color: #fff; padding: 7px 14px; border-radius: 6px; text-decoration: none; font-size: 0.82rem; }
-  .nav a:hover { background: #5a3a4c; }
   .article-mock { background: #fafafa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 18px; margin-bottom: 14px; }
   .article-mock h3 { font-size: 0.95rem; margin-bottom: 6px; }
   .article-mock .byline { font-size: 0.78rem; color: #888; margin-bottom: 10px; }
   .article-mock .body { font-size: 0.88rem; color: #444; line-height: 1.5; }
-  .demo-wallet-controls { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 14px; margin-bottom: 16px; font-size: 0.85rem; }
-  .demo-wallet-controls button { background: #00b2e5; color: #fff; border: none; border-radius: 5px; padding: 6px 14px; font-size: 0.82rem; cursor: pointer; margin: 4px 4px 4px 0; }
-  .demo-wallet-controls button:hover { background: #0090c0; }
-  .demo-wallet-controls button.danger { background: #ef4444; }
-  .demo-wallet-controls .balance { font-weight: 600; color: #3f2534; }
-
-  /* Embed instructions */
+  .anon-label { display: inline-block; background: #f3f4f6; color: #888; font-size: 0.72rem; font-weight: 600; padding: 3px 10px; border-radius: 4px; margin-bottom: 10px; }
   .embed-section { background: #1a1a2e; color: #e2e8f0; border-radius: 10px; padding: 24px; margin-bottom: 20px; }
   .embed-section h2 { color: #fff; font-size: 1.1rem; margin-bottom: 12px; }
   .embed-section p { font-size: 0.88rem; color: #94a3b8; line-height: 1.5; margin-bottom: 12px; }
@@ -56,19 +47,70 @@
 </style>
 </head>
 <body>
+<script src="nav.js"></script>
 <div class="page">
   <h1>SimpleTip</h1>
   <p class="tagline">One-click tipping for any website. Fund once, tip everywhere.</p>
 
-  <nav class="nav">
-    <a href="index.html">Demo</a>
-    <a href="setup.html">Author Setup</a>
-    <a href="dashboard.html">Dashboard</a>
-    <a href="login.html" style="background:#0085ff;">Pledge on ATProto</a>
-    <a href="https://github.com/Cooperation-org/simpletip" target="_blank">GitHub</a>
-  </nav>
+  <!-- ── Live demos (logged-in user) ──────────────────────── -->
 
-  <!-- ── Embed instructions ─────────────────────────────── -->
+  <div class="section">
+    <h2>Try it: Tip the author</h2>
+    <p>Click a dollar amount. If you have a wallet with funds, it tips instantly. Otherwise you'll be prompted to add funds.</p>
+
+    <div class="article-mock">
+      <h3>Detained and Forgotten: Families Fighting for Answers</h3>
+      <div class="byline">By Raise the Voices · March 23, 2026</div>
+      <div class="body">Across three continents, families of the wrongfully detained are banding together to demand accountability. What started as a Facebook group of desperate mothers has become a global movement documenting cases, pressuring governments, and refusing to let the world look away...</div>
+    </div>
+
+    <simple-tip
+      receiver="raise-the-voices"
+      receiver-name="Raise the Voices">
+    </simple-tip>
+  </div>
+
+  <div class="section">
+    <h2>Try it: Split tip — author + subject</h2>
+    <p>When the article covers someone who could use support, readers split between the journalist and the subject.</p>
+
+    <div class="article-mock">
+      <h3>Inside Sudan's Emergency Rooms: Doctors Without Supplies</h3>
+      <div class="byline">By James Okafor · March 12, 2026</div>
+      <div class="body">In the besieged hospitals of Khartoum, medical staff work 20-hour shifts with dwindling supplies. Dr. Amira Hassan hasn't slept in two days. "We need everything," she says...</div>
+    </div>
+
+    <simple-tip
+      receiver="james-okafor"
+      receiver-name="James Okafor"
+      subject="sudan-er-medical-teams"
+      subject-label="Sudan ER Medical Teams">
+    </simple-tip>
+  </div>
+
+  <!-- ── What a new visitor sees (no wallet) ──────────────── -->
+
+  <div class="section">
+    <h2>What a new visitor sees</h2>
+    <p>Before the reader has a wallet, the widget looks like this. Clicking any amount starts the signup flow.</p>
+    <span class="anon-label">First-time visitor view</span>
+
+    <simple-tip
+      receiver="maria-lopez"
+      receiver-name="Maria Lopez"
+      demo-anonymous>
+    </simple-tip>
+  </div>
+
+  <div style="text-align:center; padding: 4px 0 12px;">
+    <button onclick="localStorage.removeItem('simpletip_wallet'); location.reload();"
+      style="background:none; border:1px solid #d1d5db; color:#999; border-radius:6px; padding:6px 16px; font-size:0.75rem; cursor:pointer;">
+      Reset demo wallet
+    </button>
+  </div>
+
+  <!-- ── Embed instructions ───────────────────────────────── -->
+
   <div class="embed-section" id="embedSection">
     <h2>Embed SimpleTip in your site</h2>
     <p>Add tipping to any article in two lines of HTML. Works everywhere JavaScript runs.</p>
@@ -84,7 +126,7 @@
 
     <div class="step">
       <span class="step-num">1</span>
-      <span class="step-text"><a href="setup.html">Register as an author</a> to get your slug</span>
+      <span class="step-text"><a href="setup.html">Register as a receiver</a> and add a payout method</span>
     </div>
 
     <div class="step">
@@ -93,16 +135,16 @@
     </div>
 
     <div class="code-block" id="embedBasic"><button class="copy-btn" onclick="copyCode('embedBasic')">Copy</button><span class="tag">&lt;script</span> <span class="attr">src</span>=<span class="val">"https://demos.linkedtrust.us/simpletip/simpletip.js"</span><span class="tag">&gt;&lt;/script&gt;</span>
-<span class="tag">&lt;simple-tip</span> <span class="attr">author</span>=<span class="val">"your-slug"</span> <span class="attr">author-name</span>=<span class="val">"Your Name"</span><span class="tag">&gt;&lt;/simple-tip&gt;</span></div>
+<span class="tag">&lt;simple-tip</span> <span class="attr">receiver</span>=<span class="val">"your-slug"</span> <span class="attr">receiver-name</span>=<span class="val">"Your Name"</span><span class="tag">&gt;&lt;/simple-tip&gt;</span></div>
 
     <div class="step" style="margin-top: 16px;">
       <span class="step-num">+</span>
-      <span class="step-text">Split tips (author + article subject):</span>
+      <span class="step-text">Split tips between multiple receivers:</span>
     </div>
 
     <div class="code-block" id="embedSplit"><button class="copy-btn" onclick="copyCode('embedSplit')">Copy</button><span class="tag">&lt;simple-tip</span>
-  <span class="attr">author</span>=<span class="val">"your-slug"</span>
-  <span class="attr">author-name</span>=<span class="val">"Your Name"</span>
+  <span class="attr">receiver</span>=<span class="val">"journalist-slug"</span>
+  <span class="attr">receiver-name</span>=<span class="val">"Journalist Name"</span>
   <span class="attr">subject</span>=<span class="val">"subject-slug"</span>
   <span class="attr">subject-label</span>=<span class="val">"Subject Name or Cause"</span><span class="tag">&gt;</span>
 <span class="tag">&lt;/simple-tip&gt;</span></div>
@@ -112,72 +154,74 @@
     The script only needs to be included once per page.</p>
   </div>
 
-  <!-- ── Live demos ─────────────────────────────────────── -->
+  <!-- ── Open & decentralized ─────────────────────────────── -->
 
-  <!-- Demo wallet controls -->
-  <div class="demo-wallet-controls">
-    <strong>Demo wallet controls</strong> (for testing — readers wouldn't see this)<br>
-    <span id="walletStatus">No wallet</span> · <span class="balance" id="balanceDisplay">$0.00</span>
-    <br>
-    <button onclick="createDemoWallet()">Create wallet</button>
-    <button onclick="addDemoFunds(20)">Add $20</button>
-    <button onclick="addDemoFunds(50)">Add $50</button>
-    <button class="danger" onclick="clearDemoWallet()">Clear wallet</button>
+  <div class="section" style="border-left: 3px solid #0085ff;">
+    <h2>Open protocol, verifiable payouts</h2>
+    <p>SimpleTip is decentralized. Anyone can run a node — a press freedom organization, a university, a journalism co-op. Each node handles payments with whatever methods work in their region. The widget is the same everywhere.</p>
+
+    <p>What makes this work is accountability. Every payout from a SimpleTip node is published as a <a href="https://linkedclaims.com" target="_blank" style="color:#0085ff; font-weight:600;">LinkedClaim</a> — an open attestation on <a href="https://atproto.com" target="_blank" style="color:#0085ff;">ATProto</a>. Not an internal record. A public, verifiable statement on the decentralized network: <em>this node paid this person this amount on this date.</em></p>
+
+    <p>That means:</p>
+    <ul style="font-size:0.88rem; color:#555; line-height:1.7; padding-left:20px; margin-bottom:14px;">
+      <li>Receivers can point to a <a href="https://live.linkedtrust.us/wall?subject=https://linkedtrust.us" target="_blank" style="color:#0085ff;">claim wall</a> showing every verified payout — not self-reported, node-attested</li>
+      <li>Donors can verify their contributions actually reached the intended recipient</li>
+      <li>Newsrooms and NGOs can audit disbursements without requesting reports from anyone</li>
+      <li>If a node stops operating, the attestation history lives on ATProto — it's portable, not locked in</li>
+    </ul>
+
+    <p>No node is trusted by default. Every node builds its track record in public, one attestation at a time. The <a href="https://linkedclaims.com" target="_blank" style="color:#0085ff;">LinkedClaims</a> spec is open. The data lives on ATProto. Anyone can verify it.</p>
+
+    <p style="font-size:0.82rem; color:#888; margin-top:14px;">
+      <a href="https://linkedclaims.com" target="_blank" style="color:#0085ff;">LinkedClaims.com</a> ·
+      <a href="https://github.com/Cooperation-org/simpletip" target="_blank" style="color:#0085ff;">Source code</a> ·
+      Built by <a href="https://linkedtrust.us" target="_blank" style="color:#0085ff;">LinkedTrust</a>
+    </p>
   </div>
 
-  <!-- Demo 1: Single author -->
+  <!-- ── Why not just use Ko-fi / CashApp? ────────────────── -->
+
   <div class="section">
-    <h2>Try it: Tip the author</h2>
-    <p>Embedded at the bottom of any article. Reader clicks a dollar amount — tip or pledge goes through instantly.</p>
+    <h2>Why not just use Ko-fi or CashApp?</h2>
+    <p>You can. They work. Here's what's different about SimpleTip:</p>
 
-    <div class="article-mock">
-      <h3>Detained and Forgotten: Families Fighting for Answers</h3>
-      <div class="byline">By Raise the Voices · March 23, 2026</div>
-      <div class="body">Across three continents, families of the wrongfully detained are banding together to demand accountability. What started as a Facebook group of desperate mothers has become a global movement documenting cases, pressuring governments, and refusing to let the world look away...</div>
-    </div>
+    <p><strong>Ko-fi, Buy Me a Coffee, Patreon</strong> — the donor leaves your site, goes to theirs, pays through their platform. They hold the money. They set the rules. If they shut down or change terms, you lose your channel. Your supporters become their users.</p>
 
-    <simple-tip
-      author="raise-the-voices"
-      author-name="Raise the Voices">
-    </simple-tip>
+    <p><strong>CashApp, Venmo, PayPal.me</strong> — peer-to-peer, but no embed. No "tip the three people who made this article" flow. No record of what the payment was for. Fine for friends splitting dinner, not for transparent support of journalism.</p>
+
+    <p><strong>SimpleTip</strong> — the widget lives on your site. Tips can split between multiple receivers. Received funds can be re-tipped to other creators without withdrawing first. And anyone can run a node.</p>
+
+    <p><strong>None of the above work everywhere.</strong> Stripe Connect is fine for US and EU receivers. But a freelance writer in Lagos doesn't have a Stripe account. A fixer in Bogotá isn't on Venmo. For many receivers, the practical options are M-Pesa, MoneyGram, or USDT — not because it's dangerous, just because that's how payments work where they are. M-Pesa is how people get paid in East Africa. MoneyGram is how families send remittances. USDT is how freelancers in places with currency controls actually receive dollars.</p>
+
+    <p>SimpleTip nodes support whatever payout methods work for their receivers: PayPal, Venmo, Zelle, ACH, M-Pesa, MoneyGram, USDT, Tether on multiple networks. Payout details are encrypted at rest. A node in Nairobi handles M-Pesa. A node in New York handles Stripe Connect. The donor sees the same widget either way.</p>
+
+    <p>That brings up the real question. Anyone with a Stripe account can hold funds on behalf of others. That's not unique to us — it's how all of the above work too. The question is: <em>why should anyone trust the operator?</em></p>
+
+    <p>Most platforms answer that with brand recognition. We answer it with verifiable records.</p>
+
+    <p>When a receiver gets paid, they confirm it — a signed attestation published on <a href="https://atproto.com" target="_blank" style="color:#0085ff;">ATProto</a> as a <a href="https://linkedclaims.com" target="_blank" style="color:#0085ff;">LinkedClaim</a>. Not an internal database entry. A public, independently verifiable statement: <em>I received $X from this node on this date.</em> That record lives on the decentralized network — it doesn't disappear if the node shuts down.</p>
+
+    <p>That gives you a real compliance trail. Proof of delivery for the operator. Receipts for donors. An audit trail that regulators or journalists can verify without asking anyone for access. And for receivers, a portable track record of support that follows them regardless of which platform they use.</p>
+
+    <p>A node that consistently pays out builds a public record. One that doesn't, has a visible gap. No trust required — just evidence.</p>
   </div>
 
-  <!-- Demo 2: Split tip -->
-  <div class="section">
-    <h2>Try it: Split tip — author + subject</h2>
-    <p>When the article covers someone who could use support, readers split between the journalist and the subject.</p>
+  <!-- ── Related projects ─────────────────────────────────── -->
 
-    <div class="article-mock">
-      <h3>Inside Sudan's Emergency Rooms: Doctors Without Supplies</h3>
-      <div class="byline">By James Okafor · March 12, 2026</div>
-      <div class="body">In the besieged hospitals of Khartoum, medical staff work 20-hour shifts with dwindling supplies. Dr. Amira Hassan hasn't slept in two days. "We need everything," she says...</div>
-    </div>
-
-    <simple-tip
-      author="james-okafor"
-      author-name="James Okafor"
-      author-img="https://i.pravatar.cc/80?img=12"
-      subject="sudan-er-teams"
-      subject-label="Sudan ER Medical Teams">
-    </simple-tip>
+  <div style="padding: 16px 0 8px; font-size: 0.82rem; color: #888; line-height: 1.7;">
+    <p style="margin-bottom: 6px;"><strong style="color:#666;">Related open-source projects:</strong></p>
+    <a href="https://liberapay.com" target="_blank" style="color:#0085ff;">Liberapay</a> — recurring donations, zero platform fees, Stripe + PayPal (not embeddable)<br>
+    <a href="https://opencollective.com" target="_blank" style="color:#0085ff;">Open Collective</a> — fiscal hosting for open-source projects and communities<br>
+    <a href="https://btcpayserver.org" target="_blank" style="color:#0085ff;">BTCPay Server</a> — self-hosted Bitcoin/Lightning payment processing<br>
+    <a href="https://github.com/abishekmuthian/open-payment-host" target="_blank" style="color:#0085ff;">Open Payment Host</a> — self-hosted alternative to Buy Me a Coffee (Go, AGPL)
   </div>
 
-  <!-- Demo 3: Minimal -->
-  <div class="section">
-    <h2>Minimal embed</h2>
-    <p>Just a name. Two lines of code.</p>
-
-    <simple-tip author="maria-lopez" author-name="Maria Lopez"></simple-tip>
-  </div>
 </div>
 
 <script src="simpletip.js"></script>
 <script>
-  const API = '/simpletip/api';
-
   function copyCode(id) {
     const block = document.getElementById(id);
-    // Get text content without the copy button text
     const text = block.textContent.replace('Copy', '').replace('Copied!', '').trim();
     navigator.clipboard.writeText(text).then(() => {
       const btn = block.querySelector('.copy-btn');
@@ -186,61 +230,6 @@
       setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
     });
   }
-
-  function updateWalletDisplay() {
-    const raw = localStorage.getItem('simpletip_wallet');
-    const w = raw ? JSON.parse(raw) : null;
-    document.getElementById('walletStatus').textContent = w ? `Wallet: ${w.name || w.handle || w.email || 'active'}` : 'No wallet';
-    document.getElementById('balanceDisplay').textContent = w ? `$${(w.balance || 0).toFixed(2)}` : '$0.00';
-  }
-
-  async function createDemoWallet() {
-    const resp = await fetch(`${API}/wallet/create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: 'demo@example.com', name: 'Demo Reader' }),
-    });
-    const data = await resp.json();
-    localStorage.setItem('simpletip_wallet', JSON.stringify({
-      token: data.token, balance: data.balance, name: data.name || 'Demo Reader', email: 'demo@example.com'
-    }));
-    updateWalletDisplay();
-  }
-
-  async function addDemoFunds(amount) {
-    const raw = localStorage.getItem('simpletip_wallet');
-    if (!raw) { alert('Create wallet first'); return; }
-    const w = JSON.parse(raw);
-    const resp = await fetch(`${API}/wallet/fund`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${w.token}` },
-      body: JSON.stringify({ amount }),
-    });
-    const data = await resp.json();
-    if (data.success) {
-      w.balance = data.balance;
-      localStorage.setItem('simpletip_wallet', JSON.stringify(w));
-      updateWalletDisplay();
-    }
-  }
-
-  function clearDemoWallet() {
-    localStorage.removeItem('simpletip_wallet');
-    updateWalletDisplay();
-  }
-
-  // Listen for tip/pledge events
-  document.addEventListener('tip', updateWalletDisplay);
-  document.addEventListener('pledge', updateWalletDisplay);
-
-  // Listen for auth from login popup
-  window.addEventListener('message', (event) => {
-    if (event.data && (event.data.type === 'simpletip-auth' || event.data.type === 'simpletip-wallet-updated')) {
-      updateWalletDisplay();
-    }
-  });
-
-  updateWalletDisplay();
 </script>
 </body>
 </html>

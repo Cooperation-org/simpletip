@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Author Dashboard — SimpleTip</title>
+<title>Receiver Dashboard — SimpleTip</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #1a1a2e; }
@@ -15,18 +15,30 @@
   .stat-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
   .stat-value { font-size: 1.6rem; font-weight: 700; color: #3f2534; }
   .stat-label { font-size: 0.75rem; color: #999; margin-top: 2px; }
-  .stat-card.pledges .stat-value { color: #0085ff; }
+  .stat-card.available .stat-value { color: #16a34a; }
+  .stat-card.paidout .stat-value { color: #888; }
 
   .section { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
   .section h2 { font-size: 0.95rem; color: #3f2534; margin-bottom: 10px; }
 
-  .tip-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 0.85rem; }
+  .tip-row { padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 0.85rem; }
   .tip-row:last-child { border-bottom: none; }
+  .tip-top { display: flex; justify-content: space-between; align-items: center; }
   .tip-amount { font-weight: 700; color: #16a34a; }
   .tip-amount.pledge { color: #0085ff; }
   .tip-from { color: #666; }
   .tip-date { font-size: 0.72rem; color: #999; }
-  .tip-source { font-size: 0.65rem; background: #f3f4f6; padding: 2px 6px; border-radius: 3px; color: #888; }
+  .tip-source { font-size: 0.65rem; background: #f3f4f6; padding: 2px 6px; border-radius: 3px; color: #888; margin-left: 6px; }
+  .tip-comment { font-size: 0.8rem; color: #555; margin-top: 4px; padding-left: 4px; font-style: italic; }
+  .tip-url { font-size: 0.68rem; color: #aaa; margin-top: 2px; }
+
+  .payout-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 0.85rem; }
+  .payout-row:last-child { border-bottom: none; }
+  .payout-amount { font-weight: 600; }
+  .payout-status { font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; }
+  .payout-status.completed { background: #dcfce7; color: #16a34a; }
+  .payout-status.pending { background: #fef9c3; color: #a16207; }
+  .payout-status.initiated { background: #dbeafe; color: #2563eb; }
 
   .empty { text-align: center; padding: 20px; color: #999; font-size: 0.88rem; }
 
@@ -35,36 +47,65 @@
   .slug-input input:focus { outline: none; border-color: #00b2e5; }
   .slug-input button { padding: 10px 18px; background: #00b2e5; color: #fff; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
   .slug-input button:hover { background: #0090c0; }
+
+  .payout-btn { background: #16a34a; color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 0.88rem; font-weight: 600; cursor: pointer; margin-top: 8px; }
+  .payout-btn:hover { background: #15803d; }
+  .payout-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .method-card { padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px; }
+  .method-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .method-type { font-weight: 600; font-size: 0.88rem; color: #3f2534; text-transform: uppercase; }
+  .method-badge { font-size: 0.68rem; padding: 2px 8px; border-radius: 4px; }
+  .method-badge.preferred { background: #dbeafe; color: #2563eb; }
+  .method-badge.verified { background: #dcfce7; color: #16a34a; }
+  .method-detail { font-size: 0.82rem; color: #666; }
+  .method-detail span { color: #444; font-family: monospace; }
+  .edit-method-btn { background: none; border: 1px solid #d1d5db; color: #666; border-radius: 6px; padding: 4px 12px; font-size: 0.75rem; cursor: pointer; }
+  .edit-method-btn:hover { background: #f3f4f6; }
+  .add-method-link { display: inline-block; margin-top: 8px; color: #00b2e5; font-size: 0.85rem; font-weight: 600; text-decoration: none; }
+  .add-method-link:hover { text-decoration: underline; }
+
+  .embed-code { background: #1a1a2e; color: #22c55e; padding: 14px; border-radius: 8px; font-family: monospace; font-size: 0.75rem; white-space: pre-wrap; word-break: break-all; margin: 10px 0; position: relative; }
+  .copy-btn { position: absolute; top: 8px; right: 8px; background: #334155; color: #94a3b8; border: none; border-radius: 4px; padding: 4px 10px; font-size: 0.7rem; cursor: pointer; }
+  .copy-btn:hover { background: #475569; color: #fff; }
+  .sample-widget { margin-top: 12px; padding: 16px; background: #fafafa; border: 1px dashed #d1d5db; border-radius: 8px; }
+  .sample-label { font-size: 0.78rem; color: #888; margin-bottom: 8px; }
 </style>
 </head>
 <body>
+<script src="nav.js"></script>
 <div class="page">
-  <h1>Author Dashboard</h1>
-  <p class="sub">See your tips and pledges.</p>
+  <h1>Receiver Dashboard</h1>
+  <p class="sub">See your tips, pledges, and payouts.</p>
 
   <div class="slug-input">
-    <input type="text" id="slugInput" placeholder="your-author-slug (e.g. james-okafor)">
+    <input type="text" id="slugInput" placeholder="your-receiver-slug (e.g. james-okafor)">
     <button id="loadBtn">Load</button>
   </div>
 
   <div id="dashboard" style="display:none;">
     <div class="stats">
+      <div class="stat-card available">
+        <div class="stat-value" id="availableBalance">$0.00</div>
+        <div class="stat-label">Available balance</div>
+      </div>
       <div class="stat-card">
-        <div class="stat-value" id="totalReceived">$0</div>
+        <div class="stat-value" id="totalReceived">$0.00</div>
         <div class="stat-label">Total received</div>
       </div>
       <div class="stat-card">
         <div class="stat-value" id="tipCount">0</div>
         <div class="stat-label">Tips</div>
       </div>
-      <div class="stat-card pledges">
-        <div class="stat-value" id="totalPledged">$0</div>
-        <div class="stat-label">Pending pledges</div>
+      <div class="stat-card paidout">
+        <div class="stat-value" id="totalPaidOut">$0.00</div>
+        <div class="stat-label">Paid out</div>
       </div>
-      <div class="stat-card pledges">
-        <div class="stat-value" id="pledgeCount">0</div>
-        <div class="stat-label">Pledgers</div>
-      </div>
+    </div>
+
+    <div id="payoutAction" style="display:none; text-align:center; margin-bottom:16px;">
+      <button class="payout-btn" id="requestPayoutBtn">Request Payout</button>
+      <div id="payoutStatus" style="font-size:0.82rem; margin-top:6px;"></div>
     </div>
 
     <div class="section" id="pledgesSection" style="display:none;">
@@ -76,15 +117,43 @@
       <h2>Recent Tips</h2>
       <div id="tipsList"></div>
     </div>
+
+    <div class="section" id="payoutsSection" style="display:none;">
+      <h2>Payouts</h2>
+      <div id="payoutsList"></div>
+    </div>
+
+    <div class="section" id="methodsSection">
+      <h2>Payout Methods</h2>
+      <div id="methodsList"></div>
+      <a href="setup.html" class="add-method-link">+ Add payout method</a>
+    </div>
+
+    <div class="section" id="embedSection">
+      <h2>Your Embed Code</h2>
+      <p style="font-size:0.82rem; color:#888; margin-bottom:8px;">Copy this into your blog, newsletter, or website:</p>
+      <div class="embed-code" id="embedCode"><button class="copy-btn" id="copyEmbedBtn">Copy</button></div>
+      <p style="font-size:0.72rem; color:#aaa; margin-top:6px;">Works on Ghost, WordPress, Substack, Hugo, Jekyll — anywhere JavaScript runs.</p>
+
+      <div class="sample-widget">
+        <div class="sample-label">Live preview:</div>
+        <div id="sampleWidgetContainer"></div>
+      </div>
+    </div>
   </div>
 </div>
 
+<script src="simpletip.js"></script>
+
 <script>
   const API = '/simpletip/api';
+  let currentSlug = null;
+
+  function cents(v) { return '$' + (v / 100).toFixed(2); }
 
   // Check URL param
   const params = new URLSearchParams(window.location.search);
-  const slugParam = params.get('author');
+  const slugParam = params.get('receiver') || params.get('author');
   if (slugParam) {
     document.getElementById('slugInput').value = slugParam;
     loadDashboard(slugParam);
@@ -99,32 +168,46 @@
   });
 
   async function loadDashboard(slug) {
-    const resp = await fetch(`${API}/author/${slug}/dashboard`);
+    const resp = await fetch(`${API}/receiver/${slug}/dashboard`);
     if (!resp.ok) {
       document.getElementById('dashboard').style.display = 'none';
-      alert('Author not found');
+      const status = document.getElementById('payoutStatus');
+      status.textContent = 'Receiver not found';
+      status.style.color = '#ef4444';
       return;
     }
     const data = await resp.json();
+    currentSlug = slug;
 
     document.getElementById('dashboard').style.display = '';
-    document.getElementById('totalReceived').textContent = `$${(data.stats.totalReceived || 0).toFixed(2)}`;
+    document.getElementById('totalReceived').textContent = cents(data.stats.totalReceived || 0);
     document.getElementById('tipCount').textContent = data.stats.tipCount;
-    document.getElementById('totalPledged').textContent = `$${(data.stats.totalPledged || 0).toFixed(2)}`;
-    document.getElementById('pledgeCount').textContent = data.stats.pledgeCount;
+    document.getElementById('totalPaidOut').textContent = cents(data.stats.totalPaidOut || 0);
+    document.getElementById('availableBalance').textContent = cents(data.stats.availableBalance || 0);
+
+    // Show payout button if balance > 0
+    const payoutAction = document.getElementById('payoutAction');
+    if (data.stats.availableBalance > 0) {
+      payoutAction.style.display = '';
+    } else {
+      payoutAction.style.display = 'none';
+    }
 
     // Pledges
     const pledgesSection = document.getElementById('pledgesSection');
     const pledgesList = document.getElementById('pledgesList');
-    if (data.pendingPledges.length > 0) {
+    if (data.pledges && data.pledges.length > 0) {
       pledgesSection.style.display = '';
-      pledgesList.innerHTML = data.pendingPledges.map(p => `
+      pledgesList.innerHTML = data.pledges.map(p => `
         <div class="tip-row">
-          <span>
-            <span class="tip-amount pledge">$${p.amount.toFixed(2)}</span>
-            <span class="tip-from">from ${p.pledger_handle || p.pledger_name || 'anonymous'}</span>
-          </span>
-          <span class="tip-date">${new Date(p.created_at).toLocaleDateString()}</span>
+          <div class="tip-top">
+            <span>
+              <span class="tip-amount pledge">${cents(p.split_amount_cents || p.amount_cents)}</span>
+              <span class="tip-from">from ${p.pledger_handle || p.pledger_name || 'anonymous'}</span>
+            </span>
+            <span class="tip-date">${new Date(p.created_at).toLocaleDateString()}</span>
+          </div>
+          ${p.comment ? `<div class="tip-comment">"${escHtml(p.comment)}"</div>` : ''}
         </div>
       `).join('');
     } else {
@@ -133,20 +216,129 @@
 
     // Tips
     const tipsList = document.getElementById('tipsList');
-    if (data.tips.length > 0) {
+    if (data.tips && data.tips.length > 0) {
       tipsList.innerHTML = data.tips.map(t => `
         <div class="tip-row">
-          <span>
-            <span class="tip-amount">$${t.author_amount.toFixed(2)}</span>
-            <span class="tip-from">from ${t.tipper_handle || t.tipper_name || 'anonymous'}</span>
-            <span class="tip-source">${t.source}</span>
-          </span>
-          <span class="tip-date">${new Date(t.created_at).toLocaleDateString()}</span>
+          <div class="tip-top">
+            <span>
+              <span class="tip-amount">${cents(t.split_amount_cents || t.amount_cents)}</span>
+              <span class="tip-from">from ${t.tipper_handle || t.tipper_name || 'Anonymous'}</span>
+              ${t.source ? `<span class="tip-source">${escHtml(t.source)}</span>` : ''}
+            </span>
+            <span class="tip-date">${new Date(t.created_at).toLocaleDateString()}</span>
+          </div>
+          ${t.comment ? `<div class="tip-comment">"${escHtml(t.comment)}"</div>` : ''}
+          ${t.page_url ? `<div class="tip-url">${escHtml(t.page_url)}</div>` : ''}
         </div>
       `).join('');
     } else {
       tipsList.innerHTML = '<div class="empty">No tips yet. Share your embed code!</div>';
     }
+
+    // Payouts
+    const payoutsSection = document.getElementById('payoutsSection');
+    const payoutsList = document.getElementById('payoutsList');
+    if (data.payouts && data.payouts.length > 0) {
+      payoutsSection.style.display = '';
+      payoutsList.innerHTML = data.payouts.map(p => `
+        <div class="payout-row">
+          <span class="payout-amount">${cents(p.amount_cents)}</span>
+          <span>
+            <span class="payout-status ${p.status}">${p.status}</span>
+            <span class="tip-date">${new Date(p.initiated_at || p.completed_at).toLocaleDateString()}</span>
+          </span>
+        </div>
+      `).join('');
+    } else {
+      payoutsSection.style.display = 'none';
+    }
+
+    // Payout methods
+    loadPayoutMethods(slug);
+
+    // Embed code
+    const receiverName = data.receiver ? (data.receiver.name || slug) : slug;
+    const embedStr = `<script src="${location.origin}/simpletip/simpletip.js"><\/script>\n<simple-tip receiver="${slug}" receiver-name="${escHtml(receiverName)}"></simple-tip>`;
+    const embedEl = document.getElementById('embedCode');
+    embedEl.firstChild.textContent = embedStr;
+
+    // Sample widget
+    const container = document.getElementById('sampleWidgetContainer');
+    container.innerHTML = `<simple-tip receiver="${slug}" receiver-name="${escHtml(receiverName)}"></simple-tip>`;
+  }
+
+  async function loadPayoutMethods(slug) {
+    const methodsList = document.getElementById('methodsList');
+    try {
+      const methods = await fetch(`${API}/receiver/${slug}/payout-methods`).then(r => r.json());
+      if (methods && methods.length > 0) {
+        methodsList.innerHTML = methods.map(m => {
+          const details = m.maskedDetails || {};
+          const detailsHtml = Object.entries(details).map(([k, v]) =>
+            `<div class="method-detail">${escHtml(k.replace(/_/g, ' '))}: <span>${escHtml(v)}</span></div>`
+          ).join('');
+          const badges = [
+            m.isPreferred ? '<span class="method-badge preferred">preferred</span>' : '',
+            m.verified ? '<span class="method-badge verified">verified</span>' : '',
+          ].filter(Boolean).join(' ');
+          return `
+            <div class="method-card">
+              <div class="method-header">
+                <span>${badges} <span class="method-type">${escHtml(m.methodType)}</span></span>
+                <a href="setup.html" class="edit-method-btn">Edit</a>
+              </div>
+              ${detailsHtml}
+            </div>
+          `;
+        }).join('');
+      } else {
+        methodsList.innerHTML = '<div class="empty">No payout method configured. <a href="setup.html">Add one</a></div>';
+      }
+    } catch (e) {
+      methodsList.innerHTML = '<div class="empty">Could not load payout methods.</div>';
+    }
+  }
+
+  // Request payout
+  document.getElementById('requestPayoutBtn').addEventListener('click', async () => {
+    if (!currentSlug) return;
+    const btn = document.getElementById('requestPayoutBtn');
+    const status = document.getElementById('payoutStatus');
+    btn.disabled = true;
+    status.textContent = 'Requesting...';
+
+    try {
+      const resp = await fetch(`${API}/receiver/${currentSlug}/request-payout`, { method: 'POST' });
+      const data = await resp.json();
+      if (resp.ok) {
+        status.textContent = 'Payout requested! ' + (data.message || '');
+        status.style.color = '#16a34a';
+        loadDashboard(currentSlug);
+      } else {
+        status.textContent = data.detail || 'Error requesting payout';
+        status.style.color = '#ef4444';
+      }
+    } catch (e) {
+      status.textContent = 'Connection error';
+      status.style.color = '#ef4444';
+    }
+    btn.disabled = false;
+  });
+
+  // Copy embed code
+  document.getElementById('copyEmbedBtn').addEventListener('click', () => {
+    const code = document.getElementById('embedCode').textContent.replace('Copy', '').replace('Copied!', '').trim();
+    navigator.clipboard.writeText(code).then(() => {
+      const btn = document.getElementById('copyEmbedBtn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    });
+  });
+
+  function escHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
   }
 </script>
 </body>

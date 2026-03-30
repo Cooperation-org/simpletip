@@ -33,7 +33,7 @@ Meanwhile, the people *in* the stories — the doctors, teachers, organizers, ac
 
 ```html
 <script src="https://tips.linkedtrust.us/simpletip.js"></script>
-<simple-tip author="james-okafor" author-name="James Okafor"></simple-tip>
+<simple-tip receiver="james-okafor" receiver-name="James Okafor"></simple-tip>
 ```
 
 That's it. Works on Ghost, WordPress, Substack custom HTML, Hugo, Jekyll, raw HTML — anywhere JavaScript runs.
@@ -44,8 +44,8 @@ The feature that makes SimpleTip different: when your article covers someone who
 
 ```html
 <simple-tip
-  author="james-okafor"
-  author-name="James Okafor"
+  receiver="james-okafor"
+  receiver-name="James Okafor"
   subject="sudan-er-teams"
   subject-label="Sudan ER Medical Teams">
 </simple-tip>
@@ -206,8 +206,8 @@ Full deployment docs coming. If you're interested in running a node, open an iss
 ## Tech Stack
 
 - **Web component:** Vanilla JS, Shadow DOM, zero dependencies. One file: `simpletip.js`
-- **Backend:** Node.js + Express. Simple REST API.
-- **Database:** SQLite (single node) or Postgres (production scale).
+- **Backend:** Python 3.11+ / FastAPI / uvicorn. Async REST API with asyncpg connection pool.
+- **Database:** PostgreSQL 15+ with pgcrypto. AES-256-GCM encryption for payout details.
 - **Payments in:** Stripe Checkout (cards, Apple Pay, Google Pay, bank), PayPal.
 - **Payments out:** PayPal Payouts, Wise API, Chimoney (M-Pesa), manual for others.
 - **Auth:** Anonymous-first — wallet auto-created on first tip. Optional email, Google OAuth, or ATProto OAuth for recovery and cross-device access.

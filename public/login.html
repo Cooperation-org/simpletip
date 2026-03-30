@@ -62,6 +62,7 @@
 
   .status { text-align: center; font-size: 0.82rem; margin-top: 12px; min-height: 1.2em; }
   .status.error { color: #ef4444; }
+  .status.success { color: #16a34a; }
   .status.info { color: #888; }
 
   .back-link { display: block; text-align: center; font-size: 0.75rem; color: #999; margin-top: 12px; cursor: pointer; }
@@ -69,6 +70,7 @@
 </style>
 </head>
 <body>
+<script src="nav.js"></script>
 <div class="card">
   <h2>Sign in to SimpleTip</h2>
   <p class="sub">Your wallet works across every site with SimpleTip.</p>
@@ -137,7 +139,7 @@
     document.getElementById('mainButtons').style.display = '';
   });
 
-  // Bluesky OAuth submit
+  // Bluesky — placeholder for ATProto OAuth (not yet implemented server-side)
   document.getElementById('handleSubmit').addEventListener('click', async () => {
     const handle = document.getElementById('handleInput').value.trim();
     if (!handle) return;
@@ -149,27 +151,49 @@
     status.textContent = '';
 
     try {
-      const resp = await fetch(`${API}/auth/bluesky?handle=${encodeURIComponent(handle)}`);
-      const data = await resp.json();
+      // Create/recover wallet using handle as identifier
+      let resp = await fetch(`${API}/wallet/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handle }),
+      });
+      let data = await resp.json();
 
-      if (data.url) {
-        // Redirect to Bluesky authorization page
-        window.location.href = data.url;
+      if (data.token) {
+        const wallet = {
+          token: data.token,
+          balance: data.balance || 0,
+          name: data.name || '',
+          handle: handle,
+        };
+        localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
+
+        // Save handle as contact info
+        await fetch(`${API}/wallet/contact`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.token}` },
+          body: JSON.stringify({ handle, display_name: handle }),
+        });
+
+        if (window.opener) {
+          window.opener.postMessage({ type: 'simpletip-auth', wallet }, '*');
+        }
+        status.textContent = 'Signed in! You can close this window.';
+        status.className = 'status success';
+        setTimeout(() => window.close(), 1000);
       } else {
-        status.textContent = data.error || 'Failed to connect';
+        status.textContent = data.detail || 'Could not create wallet';
         status.className = 'status error';
-        btn.disabled = false;
-        btn.textContent = 'Sign in with Bluesky';
       }
     } catch (err) {
       status.textContent = 'Connection error';
       status.className = 'status error';
-      btn.disabled = false;
-      btn.textContent = 'Sign in with Bluesky';
     }
+
+    btn.disabled = false;
+    btn.textContent = 'Sign in with Bluesky';
   });
 
-  // Enter key for handle
   document.getElementById('handleInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('handleSubmit').click();
   });
@@ -211,13 +235,13 @@
           name: data.name || name || '',
           email: data.email || email,
         };
-        // Save to our domain's localStorage
         localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
-        // Notify opener
         if (window.opener) {
           window.opener.postMessage({ type: 'simpletip-auth', wallet }, '*');
         }
-        window.close();
+        status.textContent = 'Signed in! You can close this window.';
+        status.className = 'status success';
+        setTimeout(() => window.close(), 1000);
       } else {
         status.textContent = 'Could not create wallet';
         status.className = 'status error';
@@ -231,7 +255,6 @@
     btn.textContent = 'Continue';
   });
 
-  // Enter key for email
   document.getElementById('emailInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') document.getElementById('emailSubmit').click();
   });
