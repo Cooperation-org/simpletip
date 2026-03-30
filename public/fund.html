@@ -35,7 +35,6 @@
     padding: 14px; margin-top: 12px; font-size: 0.85rem; color: #92400e; line-height: 1.4;
   }
   .manual-info.show { display: block; }
-  .manual-info .addr { font-family: monospace; font-weight: 600; background: #fef3c7; padding: 4px 8px; border-radius: 4px; display: inline-block; margin: 4px 0; user-select: all; }
   .manual-info button { background: #f59e0b; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 0.85rem; cursor: pointer; margin-top: 8px; }
 
   .demo-badge { background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; text-align: center; margin-bottom: 12px; }
@@ -44,7 +43,6 @@
   .status.success { color: #16a34a; font-weight: 600; }
   .status.error { color: #ef4444; }
 
-  /* Protect wallet nudge */
   .protect-nudge {
     display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;
     padding: 12px; margin-top: 12px; font-size: 0.82rem; color: #166534; text-align: center;
@@ -62,20 +60,10 @@
     display: inline-block; margin-top: 6px; font-size: 0.72rem; color: #999;
     cursor: pointer; text-decoration: underline;
   }
-
-  /* Google Sign-In style button */
-  .google-btn {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    background: #fff; border: 1px solid #dadce0; border-radius: 8px;
-    padding: 10px 16px; cursor: pointer; font-size: 0.88rem; font-weight: 500;
-    color: #3c4043; width: 100%; margin-bottom: 8px;
-    transition: box-shadow 0.15s;
-  }
-  .google-btn:hover { box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
-  .google-btn svg { width: 18px; height: 18px; }
 </style>
 </head>
 <body>
+<script src="nav.js"></script>
 <div class="card">
   <h2>Add Funds to Your Wallet</h2>
   <p class="sub">Choose an amount and payment method.</p>
@@ -91,14 +79,11 @@
     <button class="amt-btn" data-amount="50">$50</button>
   </div>
 
-  <div class="methods" id="methods">
-    <!-- Populated dynamically from /api/methods -->
-  </div>
+  <div class="methods" id="methods"></div>
 
   <div class="manual-info" id="manualInfo"></div>
   <div class="status" id="status"></div>
 
-  <!-- Protect wallet nudge — shows after first funding for anonymous wallets -->
   <div class="protect-nudge" id="protectNudge">
     <strong>Protect your wallet</strong><br>
     Add your email so you can recover your balance from any device.
@@ -114,7 +99,8 @@
   let wallet = null;
   let demoMode = false;
 
-  // Load wallet from localStorage
+  function cents(v) { return '$' + (v / 100).toFixed(2); }
+
   try {
     const raw = localStorage.getItem('simpletip_wallet');
     if (raw) wallet = JSON.parse(raw);
@@ -129,16 +115,13 @@
     });
   });
 
-  // Icon map
   const icons = {
     card: '\u{1F4B3}', stripe: '\u{1F4B3}', paypal: '\u{1F17F}\uFE0F', zelle: '\u26A1',
     cashapp: '\u{1F4B2}', crypto: '\u{1FA99}', mpesa: '\u{1F4F1}', ilp: '\u{1F310}',
   };
 
-  // If no wallet exists at all, create one automatically
   async function ensureWallet() {
     if (wallet && wallet.token) return;
-
     const resp = await fetch(`${API}/wallet/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -151,16 +134,17 @@
     }
   }
 
-  // Load available methods
   async function loadMethods() {
     await ensureWallet();
 
     if (wallet) {
-      const w = await fetch(`${API}/wallet`, { headers: { Authorization: `Bearer ${wallet.token}` } }).then(r => r.json());
-      if (w.balance != null) {
-        wallet.balance = w.balance;
-        localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
-      }
+      try {
+        const w = await fetch(`${API}/wallet`, { headers: { Authorization: `Bearer ${wallet.token}` } }).then(r => r.json());
+        if (w.balance != null) {
+          wallet.balance = w.balance;
+          localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
+        }
+      } catch (e) {}
     }
     updateBalance();
 
@@ -193,20 +177,19 @@
     if (m.id === 'cashapp') return 'Send via Cash App';
     if (m.id === 'crypto') return m.network || 'USDT / USDC';
     if (m.id === 'mpesa') return 'Mobile money';
-    if (m.id === 'ilp') return 'Interledger Open Payments';
     return '';
   }
 
   function updateBalance() {
-    document.getElementById('balance').textContent = wallet ? `$${(wallet.balance || 0).toFixed(2)}` : '$0.00';
+    // balance is stored in cents from API
+    const bal = wallet ? (wallet.balance || 0) : 0;
+    document.getElementById('balance').textContent = cents(bal);
   }
 
-  // Check if wallet is anonymous (no real email linked)
   function isAnonymousWallet() {
     return !wallet || !wallet.email || wallet.email.endsWith('@wallet.local');
   }
 
-  // Show "protect your wallet" nudge after funding
   function showProtectNudge() {
     if (isAnonymousWallet()) {
       document.getElementById('protectNudge').classList.add('show');
@@ -302,13 +285,12 @@
       return;
     }
 
-    // Fallback
     status.textContent = `${m.label} — coming soon`;
   }
 
-  // Manual method: mark as sent (creates pending funding)
+  // Manual method: create pending funding record
   async function submitManual(method, amount) {
-    const resp = await fetch(`${API}/wallet/fund/manual`, {
+    const resp = await fetch(`${API}/wallet/fund`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${wallet.token}` },
       body: JSON.stringify({ amount, method }),
@@ -316,18 +298,18 @@
 
     const status = document.getElementById('status');
     if (resp.fundId) {
-      status.textContent = resp.message;
+      status.textContent = resp.message || 'Funding pending confirmation';
       status.className = 'status success';
       document.getElementById('manualInfo').classList.remove('show');
     }
   }
 
-  // Demo: instant credit for manual methods
+  // Demo: instant credit
   async function confirmManual(method, amount) {
     const resp = await fetch(`${API}/wallet/fund`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${wallet.token}` },
-      body: JSON.stringify({ amount }),
+      body: JSON.stringify({ amount, method }),
     }).then(r => r.json());
 
     if (resp.success) {
@@ -368,12 +350,12 @@
     }
   }
 
-  // Link email to wallet
+  // Link email via /api/wallet/contact
   document.getElementById('linkBtn').addEventListener('click', async () => {
     const email = document.getElementById('linkEmail').value.trim();
     if (!email) return;
 
-    const resp = await fetch(`${API}/wallet/link`, {
+    const resp = await fetch(`${API}/wallet/contact`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${wallet.token}` },
       body: JSON.stringify({ email }),
@@ -387,7 +369,7 @@
       document.getElementById('status').className = 'status success';
       notifyOpener();
     } else {
-      document.getElementById('status').textContent = resp.error || 'Could not link email';
+      document.getElementById('status').textContent = resp.detail || 'Could not link email';
       document.getElementById('status').className = 'status error';
     }
   });
@@ -396,7 +378,6 @@
     document.getElementById('protectNudge').classList.remove('show');
   });
 
-  // Make confirmManual available globally for onclick
   window.confirmManual = confirmManual;
   window.submitManual = submitManual;
 
