@@ -19,6 +19,7 @@ from pydantic import BaseModel
 
 import db
 import encryption
+import atproto_oauth
 from config import settings
 
 log = logging.getLogger("simpletip")
@@ -1282,6 +1283,72 @@ async def admin_atproto_publish_batch(since_hours: int = Query(default=24)):
     async with db.pool.acquire() as conn:
         result = await publish_batch(conn, since_hours)
     return result
+
+
+# ── ATProto OAuth ────────────────────────────────────────────
+
+@app.get("/client-metadata.json")
+async def client_metadata():
+    """OAuth client metadata — required by ATProto OAuth."""
+    return atproto_oauth.get_client_metadata()
+
+
+class OAuthStartRequest(BaseModel):
+    handle: str
+    scope: str = "atproto"  # Start with read, upgrade to transition:authfull for writes
+
+
+@app.post("/api/oauth/start")
+async def oauth_start(body: OAuthStartRequest):
+    """Start ATProto OAuth flow. Returns URL to redirect user to."""
+    try:
+        result = await atproto_oauth.start_auth(body.handle, body.scope)
+        return result
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/oauth/callback")
+async def oauth_callback(code: str = Query(...), state: str = Query(...)):
+    """OAuth callback — exchange code for tokens."""
+    try:
+        result = await atproto_oauth.handle_callback(code, state)
+        # Redirect to login success page with session info
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(
+            url=f"{settings.node_url}/login-success.html?session={result['session_id']}&did={result['did']}&handle={result['handle']}&scope={result['scope']}"
+        )
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+class OAuthUpgradeRequest(BaseModel):
+    session_id: str
+
+
+@app.post("/api/oauth/upgrade")
+async def oauth_upgrade(body: OAuthUpgradeRequest):
+    """Upgrade OAuth scope from atproto to transition:authfull for writing claims."""
+    try:
+        result = await atproto_oauth.upgrade_scope(body.session_id)
+        return result
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/oauth/session")
+async def oauth_session(session_id: str = Query(...)):
+    """Check OAuth session status."""
+    session = atproto_oauth.get_session(session_id)
+    if not session:
+        return {"authenticated": False}
+    return {
+        "authenticated": True,
+        "did": session["did"],
+        "handle": session["handle"],
+        "scope": session["scope"],
+        "can_write": session["scope"] == "transition:authfull",
+    }
 
 
 # ── Static files (public/ directory) ─────────────────────────
