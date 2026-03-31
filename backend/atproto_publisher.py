@@ -1,5 +1,5 @@
 """
-ATProto publisher — posts completed tips as com.linkedclaims.claim records.
+ATProto publisher — posts completed tips as com.thelexfiles.zakia.temp.tip records.
 
 Uses httpx for direct ATProto XRPC calls (lightweight, async).
 All errors are caught and logged — publishing never fails a tip.
@@ -54,7 +54,7 @@ async def _get_session() -> dict:
 async def publish_tip(tip_id, conn) -> str | None:
     """Build and publish a tip as a LinkedClaim. Returns AT-URI or None on failure."""
     tip = await conn.fetchrow(
-        "SELECT t.id, t.amount_cents, t.comment, t.page_url, t.created_at, t.atproto_uri "
+        "SELECT t.id, t.wallet_id, t.amount_cents, t.comment, t.page_url, t.created_at, t.atproto_uri "
         "FROM tips t WHERE t.id = $1 AND t.status = 'completed'",
         tip_id,
     )
@@ -64,6 +64,14 @@ async def publish_tip(tip_id, conn) -> str | None:
     if tip["atproto_uri"]:
         log.debug("publish_tip: tip %s already published: %s", tip_id, tip["atproto_uri"])
         return tip["atproto_uri"]
+
+    # Get tipper info from wallet_contacts
+    tipper_info = await conn.fetchrow(
+        "SELECT wc.did, wc.handle, wc.name, wc.display_name, wc.anonymous "
+        "FROM wallet_contacts wc "
+        "WHERE wc.wallet_id = $1",
+        tip["wallet_id"],
+    )
 
     splits = await conn.fetch(
         "SELECT r.slug, r.name, ts.amount_cents, ts.role "
@@ -75,14 +83,13 @@ async def publish_tip(tip_id, conn) -> str | None:
         log.warning("publish_tip: tip %s has no splits", tip_id)
         return None
 
-    # Build claim fields
+    # Build claim fields — tipper is the subject, receiver is the object
+    tipper_did = ""
+    if tipper_info and not tipper_info["anonymous"]:
+        tipper_did = tipper_info["did"] or tipper_info["handle"] or ""
+
     receiver_names = " + ".join(s["name"] or s["slug"] for s in splits)
     amount_str = f"${tip['amount_cents'] / 100:.2f}"
-    statement = f"Tip of {amount_str} to {receiver_names}"
-    if tip["page_url"]:
-        statement += f" for {tip['page_url']}"
-    if tip["comment"]:
-        statement += f" — {tip['comment']}"
 
     created_at = tip["created_at"]
     if isinstance(created_at, datetime):
@@ -92,23 +99,17 @@ async def publish_tip(tip_id, conn) -> str | None:
     else:
         iso_ts = str(created_at)
 
-    object_val = " + ".join(s["slug"] for s in splits)
-
     record = {
-        "$type": "com.linkedclaims.claim",
-        "subject": settings.node_url,
-        "claimType": "tip",
-        "object": object_val,
-        "statement": statement,
-        "confidence": 1.0,
-        "effectiveDate": iso_ts,
+        "$type": "com.thelexfiles.zakia.temp.tip",
+        "tipper": tipper_did,
+        "receiver": receiver_names,
+        "amount": amount_str,
         "createdAt": iso_ts,
     }
     if tip["page_url"]:
-        record["source"] = {
-            "uri": tip["page_url"],
-            "howKnown": "FIRST_HAND",
-        }
+        record["contentUrl"] = tip["page_url"]
+    if tip["comment"]:
+        record["comment"] = tip["comment"]
 
     # Publish
     session = await _get_session()
@@ -118,7 +119,7 @@ async def publish_tip(tip_id, conn) -> str | None:
             headers={"Authorization": f"Bearer {session['accessJwt']}"},
             json={
                 "repo": session["did"],
-                "collection": "com.linkedclaims.claim",
+                "collection": "com.thelexfiles.zakia.temp.tip",
                 "record": record,
             },
         )
