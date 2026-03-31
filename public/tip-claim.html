@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleTip — Tip Claims on ATProto</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8f9fa; color: #1a1a2e; min-height: 100vh; }
+
+        header { background: #1a1a2e; color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        header h1 { font-size: 1.4rem; }
+        header .user-info { font-size: 0.9rem; opacity: 0.8; }
+        header button { background: rgba(255,255,255,0.15); color: white; border: none; padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; }
+
+        .container { max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+
+        .card { background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 1.5rem; }
+        .card h2 { margin-bottom: 1rem; font-size: 1.2rem; color: #1a1a2e; }
+        .card p.desc { color: #666; margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5; }
+
+        label { display: block; font-weight: 600; margin-bottom: 0.3rem; font-size: 0.9rem; }
+        input, textarea { width: 100%; padding: 0.7rem; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; margin-bottom: 1rem; font-family: inherit; }
+        input:focus, textarea:focus { outline: none; border-color: #4a6cf7; box-shadow: 0 0 0 3px rgba(74,108,247,0.1); }
+        textarea { resize: vertical; min-height: 80px; }
+
+        .btn { background: #4a6cf7; color: white; border: none; padding: 0.8rem 2rem; border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: 600; width: 100%; }
+        .btn:hover { background: #3a5ce5; }
+        .btn:disabled { background: #aaa; cursor: not-allowed; }
+        .btn-login { background: #0085ff; }
+        .btn-login:hover { background: #0070dd; }
+
+        .status { padding: 1rem; border-radius: 8px; margin-top: 1rem; display: none; }
+        .status.success { display: block; background: #d4edda; color: #155724; }
+        .status.error { display: block; background: #f8d7da; color: #721c24; }
+        .status.info { display: block; background: #d1ecf1; color: #0c5460; }
+
+        .login-section { text-align: center; }
+        .login-section input { text-align: center; max-width: 350px; margin: 0 auto 1rem; display: block; }
+        .login-section .btn { max-width: 350px; margin: 0 auto; }
+
+        .lexicon-badge { display: inline-block; background: #e8eeff; color: #4a6cf7; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.8rem; font-family: monospace; margin-bottom: 1rem; }
+
+        .published-list { margin-top: 1.5rem; }
+        .published-item { background: #f8f9fa; border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem; border-left: 3px solid #4a6cf7; }
+        .published-item .meta { font-size: 0.8rem; color: #888; margin-top: 0.3rem; }
+
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        @media (max-width: 500px) { .field-row { grid-template-columns: 1fr; } }
+
+        footer { text-align: center; padding: 2rem; color: #999; font-size: 0.85rem; }
+        footer a { color: #4a6cf7; text-decoration: none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>SimpleTip</h1>
+    <div id="header-right">
+        <span class="user-info" id="user-display" style="display:none"></span>
+        <button id="logout-btn" style="display:none" onclick="logout()">Sign Out</button>
+    </div>
+</header>
+
+<div class="container">
+
+    <!-- Login Section -->
+    <div id="login-section" class="card login-section">
+        <h2>Sign in with ATProto</h2>
+        <p class="desc">Connect your Bluesky account to publish tip claims to the AT Protocol.</p>
+        <input type="text" id="handle-input" placeholder="your-handle.bsky.social" />
+        <input type="password" id="password-input" placeholder="App password (not your main password)" />
+        <p class="desc" style="font-size:0.8rem; margin-bottom:1rem;">Create an app password at <a href="https://bsky.app/settings/app-passwords" target="_blank">bsky.app/settings/app-passwords</a></p>
+        <button class="btn btn-login" onclick="login()">Sign In</button>
+        <div id="login-status" class="status"></div>
+    </div>
+
+    <!-- Tip Form Section -->
+    <div id="tip-section" style="display:none">
+        <div class="card">
+            <span class="lexicon-badge">com.thelexfiles.zakia.temp.tip</span>
+            <h2>Publish a Tip Claim</h2>
+            <p class="desc">Record that someone valued another person's work by tipping them. This publishes a verifiable claim to your ATProto PDS.</p>
+
+            <label>Receiver</label>
+            <input type="text" id="receiver" placeholder="Name or DID of who you're tipping" />
+
+            <div class="field-row">
+                <div>
+                    <label>Amount</label>
+                    <input type="text" id="amount" placeholder="$5.00" />
+                </div>
+                <div>
+                    <label>Content URL</label>
+                    <input type="text" id="contentUrl" placeholder="https://example.com/article" />
+                </div>
+            </div>
+
+            <label>Comment (optional)</label>
+            <textarea id="comment" placeholder="Why are you tipping? What did you value about their work?"></textarea>
+
+            <button class="btn" id="publish-btn" onclick="publishTip()">Publish Tip Claim</button>
+            <div id="publish-status" class="status"></div>
+        </div>
+
+        <!-- Published Tips -->
+        <div class="card">
+            <h2>Your Published Tips</h2>
+            <p class="desc">Tip claims published from your account to ATProto.</p>
+            <div id="published-list">
+                <p style="color:#999; text-align:center;">No tips published yet.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer>
+    Built by <a href="https://bsky.app/profile/zakiaimran.bsky.social" target="_blank">Zakia Mangal</a>
+    for <a href="https://linkedtrust.us" target="_blank">LinkedTrust</a>
+    &middot; Lexicon: <code>com.thelexfiles.zakia.temp.tip</code>
+    &middot; <a href="https://thelexfiles.com" target="_blank">Built with theLexFiles</a>
+</footer>
+
+<script>
+const COLLECTION = "com.thelexfiles.zakia.temp.tip";
+let session = null;
+
+async function login() {
+    const handle = document.getElementById('handle-input').value.trim();
+    const password = document.getElementById('password-input').value.trim();
+    const statusEl = document.getElementById('login-status');
+
+    if (!handle || !password) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Please enter your handle and app password.';
+        return;
+    }
+
+    statusEl.className = 'status info';
+    statusEl.textContent = 'Signing in...';
+
+    try {
+        const resp = await fetch('https://bsky.social/xrpc/com.atproto.server.createSession', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier: handle, password: password })
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.message || 'Login failed');
+        }
+
+        session = await resp.json();
+        statusEl.className = 'status success';
+        statusEl.textContent = 'Signed in as ' + session.handle;
+
+        // Show tip section, hide login
+        setTimeout(() => {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('tip-section').style.display = 'block';
+            document.getElementById('user-display').style.display = 'inline';
+            document.getElementById('user-display').textContent = '@' + session.handle;
+            document.getElementById('logout-btn').style.display = 'inline';
+            loadPublishedTips();
+        }, 500);
+
+    } catch (e) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Error: ' + e.message;
+    }
+}
+
+function logout() {
+    session = null;
+    document.getElementById('login-section').style.display = 'block';
+    document.getElementById('tip-section').style.display = 'none';
+    document.getElementById('user-display').style.display = 'none';
+    document.getElementById('logout-btn').style.display = 'none';
+    document.getElementById('handle-input').value = '';
+    document.getElementById('password-input').value = '';
+    document.getElementById('login-status').className = 'status';
+}
+
+async function publishTip() {
+    const receiver = document.getElementById('receiver').value.trim();
+    const amount = document.getElementById('amount').value.trim();
+    const contentUrl = document.getElementById('contentUrl').value.trim();
+    const comment = document.getElementById('comment').value.trim();
+    const statusEl = document.getElementById('publish-status');
+
+    if (!receiver || !amount) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Receiver and amount are required.';
+        return;
+    }
+
+    statusEl.className = 'status info';
+    statusEl.textContent = 'Publishing tip claim...';
+
+    const record = {
+        "$type": COLLECTION,
+        tipper: session.did,
+        receiver: receiver,
+        amount: amount,
+        createdAt: new Date().toISOString()
+    };
+    if (contentUrl) record.contentUrl = contentUrl;
+    if (comment) record.comment = comment;
+
+    try {
+        const resp = await fetch('https://bsky.social/xrpc/com.atproto.repo.createRecord', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + session.accessJwt
+            },
+            body: JSON.stringify({
+                repo: session.did,
+                collection: COLLECTION,
+                record: record
+            })
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.message || 'Publish failed');
+        }
+
+        const result = await resp.json();
+        statusEl.className = 'status success';
+        statusEl.textContent = 'Published! URI: ' + result.uri;
+
+        // Clear form
+        document.getElementById('receiver').value = '';
+        document.getElementById('amount').value = '';
+        document.getElementById('contentUrl').value = '';
+        document.getElementById('comment').value = '';
+
+        // Reload list
+        loadPublishedTips();
+
+    } catch (e) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Error: ' + e.message;
+    }
+}
+
+async function loadPublishedTips() {
+    const listEl = document.getElementById('published-list');
+
+    try {
+        const resp = await fetch(`https://bsky.social/xrpc/com.atproto.repo.listRecords?repo=${session.did}&collection=${COLLECTION}&limit=20`, {
+            headers: { 'Authorization': 'Bearer ' + session.accessJwt }
+        });
+
+        if (!resp.ok) {
+            listEl.innerHTML = '<p style="color:#999; text-align:center;">Could not load tips.</p>';
+            return;
+        }
+
+        const data = await resp.json();
+        if (!data.records || data.records.length === 0) {
+            listEl.innerHTML = '<p style="color:#999; text-align:center;">No tips published yet.</p>';
+            return;
+        }
+
+        listEl.innerHTML = data.records.map(r => {
+            const v = r.value;
+            let html = `<div class="published-item">`;
+            html += `<strong>${v.amount}</strong> to <strong>${v.receiver}</strong>`;
+            if (v.contentUrl) html += ` for <a href="${v.contentUrl}" target="_blank">${v.contentUrl}</a>`;
+            if (v.comment) html += `<br/><em>"${v.comment}"</em>`;
+            html += `<div class="meta">${new Date(v.createdAt).toLocaleString()} &middot; <code style="font-size:0.75rem">${r.uri}</code></div>`;
+            html += `</div>`;
+            return html;
+        }).join('');
+
+    } catch (e) {
+        listEl.innerHTML = '<p style="color:#999; text-align:center;">Error loading tips.</p>';
+    }
+}
+</script>
+
+</body>
+</html>
