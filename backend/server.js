@@ -680,7 +680,7 @@ app.get('/client-metadata.json', (req, res) => {
     client_name: config.nodeName || 'SimpleTip',
     client_uri: nodeUrl,
     redirect_uris: [`${nodeUrl}/api/auth/bluesky/callback`],
-    scope: 'atproto',
+    scope: 'atproto transition:email',
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     token_endpoint_auth_method: 'none',
@@ -713,7 +713,7 @@ async function setupBlueskyOAuth() {
         client_name: config.nodeName || 'SimpleTip',
         client_uri: nodeUrl,
         redirect_uris: [`${nodeUrl}/api/auth/bluesky/callback`],
-        scope: 'atproto',
+        scope: 'atproto transition:email',
         grant_types: ['authorization_code', 'refresh_token'],
         response_types: ['code'],
         token_endpoint_auth_method: 'none',
@@ -741,7 +741,7 @@ app.get('/api/auth/bluesky', async (req, res) => {
 
   try {
     const url = await oauthClient.authorize(handle, {
-      scope: 'atproto',
+      scope: 'atproto transition:email',
     });
     res.json({ url: url.toString() });
   } catch (err) {
@@ -773,17 +773,27 @@ app.get('/api/auth/bluesky/callback', async (req, res) => {
       console.log('Could not fetch profile:', e.message);
     }
 
+    // Try to get email from session (available via transition:email scope)
+    let email = null;
+    try {
+      const tokenInfo = session.tokenSet;
+      if (tokenInfo && tokenInfo.email) {
+        email = tokenInfo.email;
+      }
+    } catch (e) {}
+
     // Find or create wallet for this DID
     let wallet = db.prepare('SELECT * FROM wallets WHERE did = ?').get(did);
     if (!wallet) {
-      // Check if there's an anonymous wallet from this browser session (via state param)
-      // For now, just create a new wallet
       const id = crypto.randomBytes(8).toString('hex');
       const token = crypto.randomBytes(32).toString('hex');
-      const email = `${handle}@bsky.social`;
+      const walletEmail = email || `${handle}@bsky.social`;
       db.prepare('INSERT INTO wallets (id, email, name, token, did, handle) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(id, email, displayName, token, did, handle);
+        .run(id, walletEmail, displayName, token, did, handle);
       wallet = db.prepare('SELECT * FROM wallets WHERE id = ?').get(id);
+    } else if (email && wallet.email.endsWith('@bsky.social')) {
+      // Upgrade placeholder email to real email for wallet recovery
+      db.prepare('UPDATE wallets SET email = ? WHERE id = ?').run(email, wallet.id);
     }
 
     // Redirect to login-success page with token (popup will postMessage to opener)
