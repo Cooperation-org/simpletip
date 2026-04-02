@@ -251,6 +251,7 @@
         status.className = 'status success';
         notifyOpener();
         showProtectNudge();
+        await fulfillPledges();
       }
       return;
     }
@@ -272,6 +273,7 @@
         status.className = 'status success';
         notifyOpener();
         showProtectNudge();
+        await fulfillPledges();
       } else if (resp.clientId) {
         status.textContent = 'PayPal integration — coming soon. Use card for now.';
       }
@@ -337,7 +339,27 @@
       document.getElementById('manualInfo').classList.remove('show');
       notifyOpener();
       showProtectNudge();
+      await fulfillPledges();
     }
+  }
+
+  // Auto-fulfill pending pledges after successful funding
+  async function fulfillPledges() {
+    if (!wallet || !wallet.token) return;
+    try {
+      const resp = await fetch(`${API}/pledges/fulfill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${wallet.token}` },
+      }).then(r => r.json());
+      if (resp.fulfilled > 0) {
+        wallet.balance = resp.balance;
+        localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
+        updateBalance();
+        const status = document.getElementById('status');
+        status.textContent += ` — ${resp.fulfilled} pledge${resp.fulfilled > 1 ? 's' : ''} fulfilled!`;
+        notifyOpener();
+      }
+    } catch (e) {}
   }
 
   function notifyOpener() {
