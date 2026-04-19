@@ -179,31 +179,23 @@
     </p>
   </div>
 
-  <!-- ── Why not just use Ko-fi / CashApp? ────────────────── -->
+  <!-- ── What SimpleTip actually is ─────────────────────────── -->
 
   <div class="section">
-    <h2>Why not just use Ko-fi or CashApp?</h2>
-    <p>You can. They work. Here's what's different about SimpleTip:</p>
+    <h2>What this is</h2>
+    <p>SimpleTip is not a platform like Ko-fi or Patreon. It's not trying to replace them. You could even fund a SimpleTip wallet through Ko-fi if you wanted.</p>
 
-    <p><strong>Ko-fi, Buy Me a Coffee, Patreon</strong> — the donor leaves your site, goes to theirs, pays through their platform. They hold the money. They set the rules. If they shut down or change terms, you lose your channel. Your supporters become their users.</p>
+    <p>SimpleTip is an abstraction that makes donating to individuals <strong>one click</strong>. An embeddable widget that sits on any website — the reader never leaves the page. Fund once, tip everywhere. That's it.</p>
 
-    <p><strong>CashApp, Venmo, PayPal.me</strong> — peer-to-peer, but no embed. No "tip the three people who made this article" flow. No record of what the payment was for. Fine for friends splitting dinner, not for transparent support of journalism.</p>
+    <p>On the receiving end, it works with whatever payout method the receiver actually uses: PayPal, Venmo, Zelle, ACH, M-Pesa, MoneyGram, USDT. A freelance writer in Lagos gets paid via M-Pesa. A journalist in Bogotá gets MoneyGram. A US-based blogger gets ACH. Not because these are exotic — they're just how people get paid where they are.</p>
 
-    <p><strong>SimpleTip</strong> — the widget lives on your site. Tips can split between multiple receivers. Received funds can be re-tipped to other creators without withdrawing first. And anyone can run a node.</p>
+    <p>Tips can split between multiple receivers — the journalist and the subject of the article, for example. Received funds can be re-tipped to other creators without withdrawing first. And anyone can run a SimpleTip node.</p>
 
-    <p><strong>None of the above work everywhere.</strong> Stripe Connect is fine for US and EU receivers. But a freelance writer in Lagos doesn't have a Stripe account. A fixer in Bogotá isn't on Venmo. For many receivers, the practical options are M-Pesa, MoneyGram, or USDT — not because it's dangerous, just because that's how payments work where they are. M-Pesa is how people get paid in East Africa. MoneyGram is how families send remittances. USDT is how freelancers in places with currency controls actually receive dollars.</p>
+    <p>That last part raises a fair question. Anyone with a Stripe account can hold funds on behalf of others. So: <em>why should anyone trust the operator?</em></p>
 
-    <p>SimpleTip nodes support whatever payout methods work for their receivers: PayPal, Venmo, Zelle, ACH, M-Pesa, MoneyGram, USDT, Tether on multiple networks. Payout details are encrypted at rest. A node in Nairobi handles M-Pesa. A node in New York handles Stripe Connect. The donor sees the same widget either way.</p>
+    <p>When a receiver gets paid, they confirm it — a signed attestation published on <a href="https://atproto.com" target="_blank" style="color:#0085ff;">ATProto</a> as a <a href="https://linkedclaims.com" target="_blank" style="color:#0085ff;">LinkedClaim</a>. Not an internal database entry. A public, independently verifiable statement: <em>I received $X from this node on this date.</em> That record doesn't disappear if the node shuts down.</p>
 
-    <p>That brings up the real question. Anyone with a Stripe account can hold funds on behalf of others. That's not unique to us — it's how all of the above work too. The question is: <em>why should anyone trust the operator?</em></p>
-
-    <p>Most platforms answer that with brand recognition. We answer it with verifiable records.</p>
-
-    <p>When a receiver gets paid, they confirm it — a signed attestation published on <a href="https://atproto.com" target="_blank" style="color:#0085ff;">ATProto</a> as a <a href="https://linkedclaims.com" target="_blank" style="color:#0085ff;">LinkedClaim</a>. Not an internal database entry. A public, independently verifiable statement: <em>I received $X from this node on this date.</em> That record lives on the decentralized network — it doesn't disappear if the node shuts down.</p>
-
-    <p>That gives you a real compliance trail. Proof of delivery for the operator. Receipts for donors. An audit trail that regulators or journalists can verify without asking anyone for access. And for receivers, a portable track record of support that follows them regardless of which platform they use.</p>
-
-    <p>A node that consistently pays out builds a public record. One that doesn't, has a visible gap. No trust required — just evidence.</p>
+    <p>Proof of delivery for the operator. Receipts for donors. An audit trail anyone can verify without asking for access. A node that consistently pays out builds a public record. One that doesn't, has a visible gap. No trust required — just evidence.</p>
   </div>
 
   <!-- ── Related projects ─────────────────────────────────── -->
