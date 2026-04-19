@@ -3,30 +3,387 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Author Setup — SimpleTip</title>
+<title>Receiver Setup — SimpleTip</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #1a1a2e; }
-  .page { max-width: 600px; margin: 0 auto; padding: 24px 16px; }
+  .page { max-width: 560px; margin: 0 auto; padding: 24px 16px; }
   h1 { font-size: 1.4rem; color: #3f2534; margin-bottom: 8px; }
   .sub { font-size: 0.9rem; color: #666; margin-bottom: 24px; }
-  .nav { display: flex; gap: 10px; margin-bottom: 24px; }
-  .nav a { background: #3f2534; color: #fff; padding: 7px 14px; border-radius: 6px; text-decoration: none; font-size: 0.82rem; }
+  .card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px; }
+  .card h2 { font-size: 1.05rem; color: #3f2534; margin-bottom: 12px; }
+  .card p { font-size: 0.85rem; color: #666; margin-bottom: 14px; line-height: 1.4; }
+
+  label { display: block; font-size: 0.82rem; color: #444; margin: 12px 0 4px; font-weight: 600; }
+  input, select, textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid #d1d5db;
+    border-radius: 6px; font-size: 0.88rem; background: #fafafa;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #00b2e5; }
+  textarea { min-height: 60px; resize: vertical; }
+
+  .btn {
+    display: block; width: 100%; padding: 12px; margin-top: 16px;
+    background: #00b2e5; color: #fff; border: none; border-radius: 8px;
+    font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  }
+  .btn:hover { background: #0090c0; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn.secondary { background: #e5e7eb; color: #444; }
+  .btn.secondary:hover { background: #d1d5db; }
+
+  .method-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+  .method-option {
+    border: 2px solid #e5e7eb; border-radius: 8px; padding: 12px;
+    cursor: pointer; text-align: center; transition: border-color 0.15s;
+  }
+  .method-option:hover { border-color: #00b2e5; }
+  .method-option.selected { border-color: #00b2e5; background: #f0f9ff; }
+  .method-option .icon { font-size: 1.4rem; }
+  .method-option .name { font-size: 0.8rem; font-weight: 600; margin-top: 4px; }
+
+  .method-fields { display: none; margin-top: 12px; }
+  .method-fields.show { display: block; }
+
+  .step { display: none; }
+  .step.active { display: block; }
+
+  .step-indicator { display: flex; gap: 8px; margin-bottom: 20px; }
+  .step-dot { width: 32px; height: 4px; border-radius: 2px; background: #e5e7eb; }
+  .step-dot.active { background: #00b2e5; }
+  .step-dot.done { background: #22c55e; }
+
+  .embed-code {
+    background: #1a1a2e; color: #22c55e; padding: 14px;
+    border-radius: 8px; font-family: monospace; font-size: 0.78rem;
+    white-space: pre-wrap; word-break: break-all; margin: 12px 0;
+    position: relative;
+  }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: #334155; color: #94a3b8; border: none; border-radius: 4px;
+    padding: 4px 10px; font-size: 0.7rem; cursor: pointer;
+  }
+  .copy-btn:hover { background: #475569; color: #fff; }
+
+  .success-banner { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; text-align: center; }
+  .success-banner h3 { color: #16a34a; font-size: 1.1rem; margin-bottom: 8px; }
+  .success-banner p { font-size: 0.85rem; color: #166534; }
+
+  .error { color: #ef4444; font-size: 0.82rem; margin-top: 8px; }
 </style>
 </head>
 <body>
+<script src="nav.js"></script>
 <div class="page">
-  <h1>Get SimpleTip for your content</h1>
-  <p class="sub">Set up in 30 seconds. Get an embed code for your blog.</p>
+  <h1>Set up SimpleTip for your content</h1>
+  <p class="sub">Register as a tip receiver, choose how to get paid, get your embed code.</p>
 
-  <nav class="nav">
-    <a href="index.html">Demo</a>
-    <a href="setup.html">Author Setup</a>
-    <a href="dashboard.html">My Tips</a>
-  </nav>
+  <div class="step-indicator">
+    <div class="step-dot active" id="dot1"></div>
+    <div class="step-dot" id="dot2"></div>
+    <div class="step-dot" id="dot3"></div>
+  </div>
 
-  <simple-tip-setup></simple-tip-setup>
+  <!-- Step 1: Basic info -->
+  <div class="step active" id="step1">
+    <div class="card">
+      <h2>Step 1: Your info</h2>
+      <p>This is how donors will see you.</p>
+
+      <label>Name (as readers will see it)</label>
+      <input type="text" id="nameInput" placeholder="Dr. Amara Hassan">
+
+      <label>Email</label>
+      <input type="email" id="emailInput" placeholder="you@example.com">
+
+      <label>Type</label>
+      <select id="typeInput">
+        <option value="individual">Individual</option>
+        <option value="organization">Organization</option>
+      </select>
+
+      <label>Short bio (optional)</label>
+      <textarea id="bioInput" placeholder="Emergency physician providing care in conflict zones..."></textarea>
+
+      <div class="error" id="step1Error"></div>
+      <button class="btn" id="step1Btn">Next: Choose payout method</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Payout method -->
+  <div class="step" id="step2">
+    <div class="card">
+      <h2>Step 2: How do you want to get paid?</h2>
+      <p>Choose your preferred payout method. You can add more later.</p>
+      <p style="font-size:0.78rem; color:#92400e; background:#fef3c7; padding:8px 12px; border-radius:6px; margin-bottom:4px;">Non-Stripe-Connect payouts are limited to $600 per receiver per calendar year. Stripe Connect support coming soon for higher volumes.</p>
+
+      <div class="method-grid" id="methodGrid">
+        <div class="method-option" data-method="paypal">
+          <div class="icon">&#x1F4B3;</div>
+          <div class="name">PayPal</div>
+        </div>
+        <div class="method-option" data-method="venmo">
+          <div class="icon">&#x1F4B2;</div>
+          <div class="name">Venmo</div>
+        </div>
+        <div class="method-option" data-method="zelle">
+          <div class="icon">&#x26A1;</div>
+          <div class="name">Zelle</div>
+        </div>
+        <div class="method-option" data-method="ach">
+          <div class="icon">&#x1F3E6;</div>
+          <div class="name">Bank (ACH)</div>
+        </div>
+        <div class="method-option" data-method="mpesa">
+          <div class="icon">&#x1F4F1;</div>
+          <div class="name">M-Pesa</div>
+        </div>
+        <div class="method-option" data-method="moneygram">
+          <div class="icon">&#x1F4B5;</div>
+          <div class="name">MoneyGram</div>
+        </div>
+        <div class="method-option" data-method="usdt_eth">
+          <div class="icon">&#x1FA99;</div>
+          <div class="name">USDT (ETH)</div>
+        </div>
+        <div class="method-option" data-method="tether">
+          <div class="icon">&#x1FA99;</div>
+          <div class="name">Tether (other)</div>
+        </div>
+      </div>
+
+      <!-- Dynamic fields per method -->
+      <div class="method-fields" id="fields-paypal">
+        <label>PayPal email</label>
+        <input type="email" data-field="paypal_email" placeholder="you@paypal.com">
+      </div>
+      <div class="method-fields" id="fields-venmo">
+        <label>Venmo handle</label>
+        <input type="text" data-field="venmo_handle" placeholder="@your-venmo">
+      </div>
+      <div class="method-fields" id="fields-zelle">
+        <label>Zelle email or phone</label>
+        <input type="text" data-field="email_or_phone" placeholder="you@email.com or +1234567890">
+      </div>
+      <div class="method-fields" id="fields-ach">
+        <label>Bank name</label>
+        <input type="text" data-field="bank_name" placeholder="Chase, Wells Fargo, etc.">
+        <label>Account holder name</label>
+        <input type="text" data-field="account_holder_name" placeholder="Full name on the account">
+        <label>Routing number</label>
+        <input type="text" data-field="routing_number" placeholder="9 digits">
+        <label>Account number</label>
+        <input type="text" data-field="account_number" placeholder="Account number">
+        <label>Street address (if required by bank)</label>
+        <input type="text" data-field="street_address" placeholder="123 Main St, City, State ZIP">
+      </div>
+      <div class="method-fields" id="fields-mpesa">
+        <label>Phone number</label>
+        <input type="text" data-field="phone_number" placeholder="+254712345678">
+        <label>Country</label>
+        <input type="text" data-field="country_code" placeholder="KE, TZ, etc.">
+      </div>
+      <div class="method-fields" id="fields-moneygram">
+        <label>Full name</label>
+        <input type="text" data-field="full_name" placeholder="As on your ID">
+        <label>Country</label>
+        <input type="text" data-field="country" placeholder="Country">
+        <label>City</label>
+        <input type="text" data-field="city" placeholder="City">
+        <label>Phone</label>
+        <input type="text" data-field="phone" placeholder="+1234567890">
+      </div>
+      <div class="method-fields" id="fields-usdt_eth">
+        <label>Ethereum address (0x...)</label>
+        <input type="text" data-field="eth_address" placeholder="0x...">
+      </div>
+      <div class="method-fields" id="fields-tether">
+        <label>Wallet address</label>
+        <input type="text" data-field="address" placeholder="Address">
+        <label>Network</label>
+        <select data-field="network">
+          <option value="TRC-20">TRC-20 (Tron)</option>
+          <option value="BEP-20">BEP-20 (BSC)</option>
+          <option value="SOL">Solana</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="error" id="step2Error"></div>
+      <button class="btn" id="step2Btn" disabled>Save payout method</button>
+      <button class="btn secondary" id="step2Back">Back</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Embed code -->
+  <div class="step" id="step3">
+    <div class="card">
+      <div class="success-banner">
+        <h3>&#10003; You're all set!</h3>
+        <p>Your slug: <strong id="resultSlug"></strong></p>
+      </div>
+
+      <h2 style="margin-top: 16px;">Your embed code</h2>
+      <p>Copy this and paste it into your blog, newsletter, or website:</p>
+
+      <div class="embed-code" id="embedCode">
+        <button class="copy-btn" id="copyBtn">Copy</button>
+      </div>
+
+      <p style="font-size: 0.78rem; color: #888; margin-top: 8px;">
+        Works on Ghost, WordPress, Substack, Hugo, Jekyll — anywhere JavaScript runs.<br>
+        The script tag only needs to be included once per page.
+      </p>
+
+      <a href="dashboard.html" class="btn" id="dashLink" style="text-align: center; text-decoration: none; display: block; margin-top: 16px;">View your dashboard</a>
+    </div>
+  </div>
 </div>
-<script src="simpletip.js"></script>
+
+<script>
+  const API = '/simpletip/api';
+  const BASE_URL = '/simpletip';
+
+  let receiverSlug = '';
+  let selectedMethod = '';
+
+  // Step 1 → Step 2
+  document.getElementById('step1Btn').addEventListener('click', async () => {
+    const name = document.getElementById('nameInput').value.trim();
+    const email = document.getElementById('emailInput').value.trim();
+    const type = document.getElementById('typeInput').value;
+    const bio = document.getElementById('bioInput').value.trim();
+    const errEl = document.getElementById('step1Error');
+    errEl.textContent = '';
+
+    if (!name || !email) { errEl.textContent = 'Name and email are required.'; return; }
+
+    const btn = document.getElementById('step1Btn');
+    btn.disabled = true;
+    btn.textContent = 'Registering...';
+
+    try {
+      const resp = await fetch(`${API}/receiver/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, type, bio: bio || null }),
+      }).then(r => r.json());
+
+      if (resp.slug) {
+        receiverSlug = resp.slug;
+        if (resp.existing) {
+          errEl.textContent = '';
+          // Already registered — skip to embed code
+          showStep(3);
+          showEmbedCode();
+          return;
+        }
+        showStep(2);
+      } else {
+        errEl.textContent = resp.detail || resp.error || 'Registration failed.';
+      }
+    } catch (e) {
+      errEl.textContent = 'Connection error.';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Next: Choose payout method';
+  });
+
+  // Method selection
+  document.querySelectorAll('.method-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('.method-option').forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      selectedMethod = opt.dataset.method;
+
+      // Show the right fields
+      document.querySelectorAll('.method-fields').forEach(f => f.classList.remove('show'));
+      const fields = document.getElementById('fields-' + selectedMethod);
+      if (fields) fields.classList.add('show');
+
+      document.getElementById('step2Btn').disabled = false;
+    });
+  });
+
+  // Step 2 → Step 3
+  document.getElementById('step2Btn').addEventListener('click', async () => {
+    const errEl = document.getElementById('step2Error');
+    errEl.textContent = '';
+
+    if (!selectedMethod) { errEl.textContent = 'Select a payout method.'; return; }
+
+    // Gather fields
+    const fieldsEl = document.getElementById('fields-' + selectedMethod);
+    const details = {};
+    fieldsEl.querySelectorAll('input, select').forEach(inp => {
+      const field = inp.dataset.field;
+      if (field) details[field] = inp.value.trim();
+    });
+
+    // Check all fields have values
+    const empty = Object.entries(details).filter(([, v]) => !v);
+    if (empty.length > 0) {
+      errEl.textContent = 'Please fill in all fields.';
+      return;
+    }
+
+    const btn = document.getElementById('step2Btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+      const resp = await fetch(`${API}/receiver/${receiverSlug}/payout-method`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method_type: selectedMethod, details }),
+      }).then(r => r.json());
+
+      if (resp.id || resp.updated) {
+        showStep(3);
+        showEmbedCode();
+      } else {
+        errEl.textContent = resp.detail || resp.error || 'Could not save payout method.';
+      }
+    } catch (e) {
+      errEl.textContent = 'Connection error.';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Save payout method';
+  });
+
+  document.getElementById('step2Back').addEventListener('click', () => showStep(1));
+
+  // Copy embed code
+  document.getElementById('copyBtn').addEventListener('click', () => {
+    const code = document.getElementById('embedCode').textContent.replace('Copy', '').replace('Copied!', '').trim();
+    navigator.clipboard.writeText(code).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+    });
+  });
+
+  function showStep(n) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('step' + n).classList.add('active');
+    for (let i = 1; i <= 3; i++) {
+      const dot = document.getElementById('dot' + i);
+      dot.classList.remove('active', 'done');
+      if (i < n) dot.classList.add('done');
+      if (i === n) dot.classList.add('active');
+    }
+  }
+
+  function showEmbedCode() {
+    document.getElementById('resultSlug').textContent = receiverSlug;
+    const name = document.getElementById('nameInput').value.trim();
+    document.getElementById('embedCode').firstChild.textContent =
+      `<script src="${location.origin}${BASE_URL}/simpletip.js"><\/script>\n<simple-tip receiver="${receiverSlug}" receiver-name="${name}"></simple-tip>`;
+    document.getElementById('dashLink').href = `dashboard.html?receiver=${receiverSlug}`;
+  }
+</script>
 </body>
 </html>

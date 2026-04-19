@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile — SimpleTip</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #1a1a2e; }
+  .page { max-width: 480px; margin: 0 auto; padding: 24px 16px; }
+  h1 { font-size: 1.3rem; color: #3f2534; margin-bottom: 4px; }
+  .sub { color: #888; font-size: 0.85rem; margin-bottom: 20px; }
+
+  .no-wallet { text-align: center; padding: 40px 20px; }
+  .no-wallet p { font-size: 0.88rem; color: #888; margin-bottom: 16px; }
+  .no-wallet a { color: #00b2e5; font-weight: 600; text-decoration: none; }
+
+  .card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 16px; }
+  .card h2 { font-size: 0.95rem; color: #3f2534; margin-bottom: 14px; }
+
+  label { display: block; font-size: 0.78rem; color: #666; margin: 12px 0 4px; font-weight: 600; }
+  label:first-child { margin-top: 0; }
+  input {
+    width: 100%; padding: 9px 12px; border: 1px solid #d1d5db;
+    border-radius: 6px; font-size: 0.88rem; background: #fafafa;
+  }
+  input:focus { outline: none; border-color: #00b2e5; }
+  input:disabled { background: #f3f4f6; color: #999; }
+
+  .hint { font-size: 0.72rem; color: #aaa; margin-top: 2px; }
+
+  .btn {
+    display: block; width: 100%; padding: 11px; margin-top: 16px;
+    background: #00b2e5; color: #fff; border: none; border-radius: 8px;
+    font-size: 0.9rem; font-weight: 600; cursor: pointer;
+  }
+  .btn:hover { background: #0090c0; }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+
+  .status { font-size: 0.82rem; margin-top: 10px; min-height: 1.2em; }
+  .status.success { color: #16a34a; }
+  .status.error { color: #ef4444; }
+
+  .anon-badge { display: inline-block; background: #fef3c7; color: #92400e; font-size: 0.72rem; font-weight: 600; padding: 3px 10px; border-radius: 4px; margin-bottom: 14px; }
+
+  .connected { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; margin-bottom: 10px; font-size: 0.85rem; color: #166534; }
+  .connected svg { width: 16px; height: 16px; color: #16a34a; flex-shrink: 0; }
+
+  .danger-zone { border-top: 1px solid #fecaca; padding-top: 14px; margin-top: 14px; }
+  .danger-zone button {
+    background: none; border: 1px solid #fca5a5; color: #dc2626; border-radius: 6px;
+    padding: 6px 14px; font-size: 0.78rem; cursor: pointer;
+  }
+  .danger-zone button:hover { background: #fef2f2; }
+</style>
+</head>
+<body>
+<script src="nav.js"></script>
+<div class="page">
+  <h1>Profile</h1>
+  <p class="sub">Your contact info and connected accounts.</p>
+
+  <div id="noWallet" class="no-wallet" style="display:none;">
+    <p>No wallet found. Your wallet is created automatically when you tip.</p>
+    <a href="index.html">Try the demo</a>
+  </div>
+
+  <div id="profileView" style="display:none;">
+
+    <div id="anonBadge" class="anon-badge" style="display:none;">Anonymous wallet — link your email to protect your balance</div>
+
+    <div id="connectedAccounts"></div>
+
+    <div class="card">
+      <h2>Contact info</h2>
+      <p style="font-size:0.82rem; color:#888; margin-bottom:12px;">Optional. Receivers see your display name with tips. Email lets you recover your wallet.</p>
+
+      <label>Display name</label>
+      <input type="text" id="displayName" placeholder="How you want to appear on tips">
+
+      <label>Email</label>
+      <input type="email" id="email" placeholder="you@example.com">
+      <div class="hint">Used for wallet recovery and optional receipts</div>
+
+      <label>Phone</label>
+      <input type="tel" id="phone" placeholder="+1 555 123 4567">
+
+      <button class="btn" id="saveContactBtn">Save</button>
+      <div class="status" id="contactStatus"></div>
+    </div>
+
+    <div class="card">
+      <h2>Social accounts</h2>
+      <p style="font-size:0.82rem; color:#888; margin-bottom:12px;">Link your socials so receivers know who you are.</p>
+
+      <label>Bluesky handle</label>
+      <input type="text" id="handle" placeholder="yourname.bsky.social">
+
+      <label>Twitter / X</label>
+      <input type="text" id="twitter" placeholder="@yourhandle">
+
+      <label>Website</label>
+      <input type="url" id="website" placeholder="https://yoursite.com">
+
+      <button class="btn" id="saveSocialBtn">Save</button>
+      <div class="status" id="socialStatus"></div>
+    </div>
+
+    <div class="card">
+      <h2>Privacy</h2>
+
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin:0;">
+        <input type="checkbox" id="anonymous" style="width:auto;">
+        <span style="font-size:0.85rem; font-weight:normal;">Tip anonymously</span>
+      </label>
+      <div class="hint">When checked, receivers see "Anonymous" instead of your name</div>
+
+      <button class="btn" id="savePrivacyBtn" style="margin-top:12px;">Save</button>
+      <div class="status" id="privacyStatus"></div>
+
+      <div class="danger-zone">
+        <button id="logoutBtn">Sign out of this device</button>
+        <div class="hint">Removes your wallet from this browser. You can recover it with your email.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const API = '/simpletip/api';
+  let wallet = null;
+
+  try {
+    const raw = localStorage.getItem('simpletip_wallet');
+    if (raw) wallet = JSON.parse(raw);
+  } catch (e) {}
+
+  if (!wallet || !wallet.token) {
+    document.getElementById('noWallet').style.display = '';
+  } else {
+    document.getElementById('profileView').style.display = '';
+    loadProfile();
+  }
+
+  async function loadProfile() {
+    const headers = { 'Authorization': `Bearer ${wallet.token}` };
+    const info = await fetch(`${API}/wallet`, { headers }).then(r => r.json());
+
+    // Fill fields
+    document.getElementById('displayName').value = info.name || '';
+    document.getElementById('email').value = info.email || '';
+    document.getElementById('handle').value = info.handle || '';
+    document.getElementById('anonymous').checked = info.anonymous || false;
+
+    // Anonymous badge
+    if (!info.email) {
+      document.getElementById('anonBadge').style.display = '';
+    }
+
+    // Connected accounts
+    const connected = document.getElementById('connectedAccounts');
+    const checkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+    let html = '';
+    if (info.email) html += `<div class="connected">${checkSvg} Email: ${esc(info.email)}</div>`;
+    if (info.handle) html += `<div class="connected">${checkSvg} Bluesky: ${esc(info.handle)}</div>`;
+    if (info.did) html += `<div class="connected">${checkSvg} DID: ${esc(info.did)}</div>`;
+    connected.innerHTML = html;
+  }
+
+  async function saveContact(fields, statusId) {
+    const status = document.getElementById(statusId);
+    status.textContent = 'Saving...';
+    status.className = 'status';
+
+    try {
+      const resp = await fetch(`${API}/wallet/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${wallet.token}` },
+        body: JSON.stringify(fields),
+      }).then(r => r.json());
+
+      if (resp.success) {
+        status.textContent = 'Saved';
+        status.className = 'status success';
+        // Update localStorage
+        if (fields.email) wallet.email = fields.email;
+        if (fields.display_name) wallet.name = fields.display_name;
+        if (fields.handle) wallet.handle = fields.handle;
+        localStorage.setItem('simpletip_wallet', JSON.stringify(wallet));
+      } else {
+        status.textContent = resp.detail || 'Error';
+        status.className = 'status error';
+      }
+    } catch (e) {
+      status.textContent = 'Connection error';
+      status.className = 'status error';
+    }
+  }
+
+  document.getElementById('saveContactBtn').addEventListener('click', () => {
+    saveContact({
+      display_name: document.getElementById('displayName').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+    }, 'contactStatus');
+  });
+
+  document.getElementById('saveSocialBtn').addEventListener('click', () => {
+    saveContact({
+      handle: document.getElementById('handle').value.trim(),
+    }, 'socialStatus');
+  });
+
+  document.getElementById('savePrivacyBtn').addEventListener('click', () => {
+    saveContact({
+      anonymous: document.getElementById('anonymous').checked,
+    }, 'privacyStatus');
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    localStorage.removeItem('simpletip_wallet');
+    window.location.href = 'index.html';
+  });
+
+  function esc(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+</script>
+</body>
+</html>
