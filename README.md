@@ -193,15 +193,7 @@ The node operator decides which payment methods to support. The minimum viable s
 
 SimpleTip is designed to be run by anyone. The first node is operated by [LinkedTrust](https://linkedtrust.us), a nonprofit focused on trust and verification in digital systems.
 
-To run your own node:
-
-1. Clone this repo
-2. Set up a Stripe account (or your preferred payment processor)
-3. Configure payout methods for your region
-4. Deploy the backend
-5. Point the web component at your node's API
-
-Full deployment docs coming. If you're interested in running a node, open an issue or contact us.
+See **[INSTALL.md](INSTALL.md)** for full setup instructions — database, encryption, env vars, systemd, nginx, and production hardening.
 
 ## Tech Stack
 
@@ -215,15 +207,25 @@ Full deployment docs coming. If you're interested in running a node, open an iss
 
 ## Status
 
-**Working demo:** Web component, zero-friction wallet (auto-created, email recovery), tip ledger, author registration, split tips, multi-method funding, balance badge.
+**Working:**
+- Web component with Shadow DOM, zero-friction wallet (auto-created, email recovery)
+- Double-entry ledger — every tip creates matching debit/credit entries with `balance_after_cents` audit trail
+- Receiver wallet model — receivers get wallets that accumulate tip credits, can re-tip others
+- Payout requests with $10 minimum, $600/year cap per receiver (below 1099 threshold)
+- AES-256-GCM encryption for payout method details at rest
+- ATProto tip publishing via claim-atproto SDK (LinkedClaims attestations)
+- Bluesky OAuth with progressive scope upgrade
+- Author registration with payout method setup (PayPal, Venmo, Zelle, Cash App, ACH, crypto, M-Pesa)
+- Split tips between author and subject
+- Receiver dashboard with embed codes and payout method management
+- Demo mode (no real charges) when Stripe keys omitted
 
 **Next:**
-- Stripe integration (real payments)
-- Google OAuth / ATProto OAuth one-click wallet linking
+- Stripe Connect for receivers wanting >$600/year payouts
+- Google OAuth wallet linking
 - Magic link recovery emails
-- Author payout dashboard
-- ATProto record publishing
 - Ghost blog theme integration
+- Deploy to isolated VM for real payments
 
 ## License
 
