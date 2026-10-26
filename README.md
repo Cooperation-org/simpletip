@@ -1,4 +1,4 @@
-# SimpleTip
+![SimpleTip](https://raw.githubusercontent.com/mr-ruhid/rare-logos-vault/main/logo/web-app/tools/SimpleTip/Logo_yellow.png)
 
 **One-click tipping for journalists, authors, and the people they write about.**
 
